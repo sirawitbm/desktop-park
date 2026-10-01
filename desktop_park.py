@@ -7,7 +7,7 @@ import random
 import sys
 import threading
 
-from PySide6.QtCore import QObject, QTimer, QUrl, Signal
+from PySide6.QtCore import QObject, QPoint, QTimer, QUrl, Signal
 from PySide6.QtGui import QAction, QDesktopServices, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
@@ -21,7 +21,7 @@ from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
 from weather_window import WeatherWindow
 from sprites import Library
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 UPDATE_FIRST_MS = 5000                 # first look for a new version
 UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
@@ -51,7 +51,9 @@ class App:
         self._save_timer = QTimer(singleShot=True, interval=1500)
         self._save_timer.timeout.connect(self.save)
 
-        screen = qapp.primaryScreen()
+        self._screen_menus = []
+        screen = self._saved_screen()
+        self.screen = screen
         # weather first, so it sits behind the pets
         self.weather = WeatherWindow()
         self.weather.fit_screen(screen)
@@ -81,8 +83,11 @@ class App:
         area = screen.availableGeometry()
         b = self.data["board"]
         self.board.set_collapsed(b.get("collapsed", False))
-        self.board.place(b.get("x", area.right() - self.board.width() - 24),
-                         b.get("y", area.top() + 80), area)
+        bx = b.get("x", area.right() - self.board.width() - 24)
+        by = b.get("y", area.top() + 80)
+        # the board may sit on a different monitor than the park - keep it there
+        home = qapp.screenAt(QPoint(int(bx) + 20, int(by) + 10)) or screen
+        self.board.place(bx, by, home.availableGeometry())
 
         self._make_tray()
         self.set_locked(self.data["locked"])
@@ -90,7 +95,10 @@ class App:
         self.set_weather_auto(self.data["weather_auto"])
         self.set_hidden(self.data["hidden"])
         self.board.show()
-        screen.availableGeometryChanged.connect(lambda r: self._fit(screen))
+        screen.availableGeometryChanged.connect(self._screen_resized)
+        self.board.set_screen_menu(self._screen_menu(), len(qapp.screens()) > 1)
+        qapp.screenAdded.connect(self._screens_changed)
+        qapp.screenRemoved.connect(self._screens_changed)
 
         self._autosave = QTimer(interval=30000)       # pets wander; remember where
         self._autosave.timeout.connect(self.save)
@@ -145,6 +153,90 @@ class App:
         self.board.set_locked(on)
         self.lock_action.setChecked(on)
         self.save_soon()
+
+    # -- monitors ----------------------------------------------------------------
+    @staticmethod
+    def _screen_key(s):
+        """Model name plus position, so two identical monitors stay apart."""
+        g = s.geometry()
+        return "%s@%d,%d" % (s.name(), g.x(), g.y())
+
+    def _saved_screen(self):
+        saved = self.data.get("screen", "")
+        screens = self.qapp.screens()
+        for s in screens:                       # same monitor, same place
+            if self._screen_key(s) == saved:
+                return s
+        for s in screens:                       # same monitor, moved around
+            if s.name() == saved.rsplit("@", 1)[0]:
+                return s
+        return self.qapp.primaryScreen()
+
+    def _screen_label(self, i, s):
+        size = s.size()
+        main = "  (main)" if s is self.qapp.primaryScreen() else ""
+        return "Screen %d \u00b7 %d\u00d7%d%s" % (i + 1, size.width(), size.height(), main)
+
+    def _screen_menu(self, parent=None):
+        """A menu listing the monitors; it refreshes itself every time it opens."""
+        menu = QMenu("Screen", parent)
+        menu.aboutToShow.connect(lambda m=menu: self._fill_screen_menu(m))
+        self._fill_screen_menu(menu)
+        self._screen_menus.append(menu)
+        return menu
+
+    def _fill_screen_menu(self, menu):
+        menu.clear()
+        for i, s in enumerate(self.qapp.screens()):
+            a = menu.addAction(self._screen_label(i, s), lambda s=s: self.move_to_screen(s))
+            a.setCheckable(True)
+            a.setChecked(s is self.screen)
+
+    def _screens_changed(self, *_):
+        """A monitor was plugged in or out. Wait a moment: Qt is still
+        updating its list of screens when it tells us."""
+        QTimer.singleShot(300, self._recheck_screens)
+
+    def _recheck_screens(self):
+        screens = self.qapp.screens()
+        # our monitor gone -> main screen; it came back -> back there. The
+        # saved choice is kept either way.
+        wanted = self._saved_screen()
+        if wanted is not self.screen:
+            self.move_to_screen(wanted, remember=False)
+        self.board.set_screen_menu(self.board.screen_btn.menu(), len(screens) > 1)
+        self.tray_screen_menu.menuAction().setVisible(len(screens) > 1)
+
+    def move_to_screen(self, screen, remember=True):
+        old = self.screen
+        if screen is old:
+            return
+        old_area = None
+        try:
+            old.availableGeometryChanged.disconnect(self._screen_resized)
+            if old in self.qapp.screens():
+                old_area = old.availableGeometry()
+        except (RuntimeError, TypeError):      # that monitor was unplugged
+            pass
+        self.screen = screen
+        screen.availableGeometryChanged.connect(self._screen_resized)
+        self._fit(screen)
+        # bring the board along if it was on the screen the park left
+        new_area = screen.availableGeometry()
+        board_home = self.qapp.screenAt(self.board.geometry().center())
+        if old_area is None or board_home is None or board_home is old:
+            if old_area is not None:
+                x = new_area.left() + (self.board.x() - old_area.left()) / max(1, old_area.width()) * new_area.width()
+                y = new_area.top() + (self.board.y() - old_area.top())
+            else:
+                x, y = new_area.right() - self.board.width() - 24, new_area.top() + 80
+            self.board.place(x, y, new_area)
+        if remember:
+            self.data["screen"] = self._screen_key(screen)
+            self.save_soon()
+
+    def _screen_resized(self, *_):
+        self._fit(self.screen)
 
     def _fit(self, screen):
         self.park.fit_screen(screen)
@@ -289,6 +381,9 @@ class App:
         self.weather_auto_action = QAction("Changes by itself", wmenu, checkable=True)
         self.weather_auto_action.triggered.connect(self.set_weather_auto)
         wmenu.addAction(self.weather_auto_action)
+        self.tray_screen_menu = self._screen_menu(menu)
+        menu.addMenu(self.tray_screen_menu)
+        self.tray_screen_menu.menuAction().setVisible(len(self.qapp.screens()) > 1)
         menu.addSeparator()
         self.update_action = menu.addAction("Download update", self.open_update)
         self.update_action.setVisible(False)

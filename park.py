@@ -46,7 +46,7 @@ class ParkWindow(QWidget):
     def fit_screen(self, screen):
         area = screen.availableGeometry()   # stop above the taskbar
         self.setGeometry(area)
-        self.world.resize(area.width(), area.height())
+        self.world.relocate(area.width(), area.height())
         self.update()
 
     def showEvent(self, event):

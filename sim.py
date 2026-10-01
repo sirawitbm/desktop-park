@@ -107,6 +107,25 @@ class World:
         for t in self.things:
             self.clamp(t)
 
+    def relocate(self, width, height):
+        """The park moved to a screen of another size: keep everything at the
+        same place across the width, and whatever stood on the ground on it."""
+        old_w, old_h = max(1, self.width), max(1, self.height)
+        grounded = {id(t) for t in self.things if self.on_ground(t)}
+        self.width, self.height = width, height
+        for t in self.things:
+            centre = (t.x + t.w / 2) / old_w
+            t.x = centre * width - t.w / 2
+            if id(t) in grounded:
+                t.y = self.ground - t.h
+            else:
+                t.y = t.y / old_h * height
+            t.target = None
+            self.clamp(t)
+        for p in self.particles:
+            p[1] = p[1] / old_w * width
+            p[2] = p[2] / old_h * height
+
     def clamp(self, t):
         t.x = min(max(t.x, 0), max(0, self.width - t.w))
         t.y = min(max(t.y, 0), max(0, self.ground - t.h))

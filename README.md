@@ -66,10 +66,15 @@ run it from source (below).
 - **Weather:** the buttons under WEATHER on the board: Off, Sunny, Rain,
   Snow, Windy, and **Auto** to let it change by itself every few minutes.
   Also in the tray menu. Weather never catches the mouse.
+- **Two monitors?** Press **Screen** on the board (or **Screen** in the tray
+  menu) and pick where the park lives. Everything keeps its place, pets on
+  the ground stay on the ground, and the choice is remembered. If that
+  monitor is unplugged, the park moves to your main screen and comes back
+  when you plug it in again.
 - **Lock:** clicks go through everything, even the pets. Good for gaming.
 - **Hide park / Show park:** on the board, or from the tray icon (the fish by
   the clock).
-- The board's "-" folds it down; "x" hides it into the tray icon.
+- The board's "-" folds it down to just its title bar; "x" hides it into the tray icon.
 
 **Updates:** Desktop Park checks GitHub for a new version a few seconds after
 it starts and every 6 hours. If there is one, a green bar appears on the

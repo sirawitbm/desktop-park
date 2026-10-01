@@ -163,6 +163,10 @@ class Board(QWidget):
         row.addWidget(self.lock_btn)
         row.addWidget(self.hide_btn)
         row.addWidget(clear)
+        self.screen_btn = QPushButton("Screen")
+        self.screen_btn.setToolTip("Move the park to another monitor")
+        self.screen_btn.setVisible(False)
+        row.addWidget(self.screen_btn)
         body.addLayout(row)
 
         hint = QLabel("Click a picture to add it. In the park: drag to move,\n"
@@ -258,6 +262,12 @@ class Board(QWidget):
             self.update_text.setText("Version %s is out!" % version)
         self.update_bar.setVisible(bool(version))
         self.layout().activate()
+
+    def set_screen_menu(self, menu, show):
+        """The app hands over the menu listing the monitors."""
+        menu.setStyleSheet(STYLE)
+        self.screen_btn.setMenu(menu)
+        self.screen_btn.setVisible(show)
 
     def set_hidden(self, on):
         self.hide_btn.blockSignals(True)
