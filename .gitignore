@@ -1,0 +1,11 @@
+# Private to this PC - never commit
+local/
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/
+*.spec
