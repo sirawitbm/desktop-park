@@ -8,7 +8,7 @@ import sys
 import threading
 
 from PySide6.QtCore import QObject, QPoint, QTimer, QUrl, Signal
-from PySide6.QtGui import QAction, QDesktopServices, QIcon
+from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 import store
@@ -22,7 +22,7 @@ from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
 from weather_window import WeatherWindow
 from sprites import Library
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 UPDATE_FIRST_MS = 5000                 # first look for a new version
 UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
@@ -45,9 +45,9 @@ class App:
     def __init__(self, qapp):
         self.qapp = qapp
         qapp.setQuitOnLastWindowClosed(False)   # closing the editor must not quit
-        ui_style.install(qapp)                  # pixel fonts and frames for every window
         self.quitting = False
         self.data = store.load()
+        ui_style.install(qapp, self.data["theme"])   # Modern or Pixel look
         self.library = Library(self.data["custom_art"])
         self.editor = None
         self._save_timer = QTimer(singleShot=True, interval=1500)
@@ -251,6 +251,16 @@ class App:
         self.hide_action.setChecked(on)
         self.save_soon()
 
+    # -- look --------------------------------------------------------------------
+    def set_theme(self, theme):
+        """Switch between the Modern and Pixel looks, right away."""
+        ui_style.install(self.qapp, theme)
+        self.data["theme"] = ui_style.current()
+        self.board.apply_theme(ui_style.current())
+        for t, a in self.look_actions.items():
+            a.setChecked(t == ui_style.current())
+        self.save_soon()
+
     # -- weather ---------------------------------------------------------------
     def set_weather(self, kind):
         if kind not in WEATHER_KINDS:
@@ -380,6 +390,16 @@ class App:
         self.weather_auto_action = QAction("Changes by itself", wmenu, checkable=True)
         self.weather_auto_action.triggered.connect(self.set_weather_auto)
         wmenu.addAction(self.weather_auto_action)
+        lmenu = menu.addMenu("Look")
+        self.look_actions = {}
+        group = QActionGroup(lmenu)
+        for theme in ui_style.THEMES:
+            a = QAction(ui_style.LABELS[theme], lmenu, checkable=True)
+            a.setChecked(theme == ui_style.current())
+            a.triggered.connect(lambda _=False, t=theme: self.set_theme(t))
+            group.addAction(a)
+            lmenu.addAction(a)
+            self.look_actions[theme] = a
         self.tray_screen_menu = self._screen_menu(menu)
         menu.addMenu(self.tray_screen_menu)
         self.tray_screen_menu.menuAction().setVisible(len(self.qapp.screens()) > 1)

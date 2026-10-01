@@ -19,7 +19,7 @@ $ProjectExeName   = "DesktopPark"
 # Shown in the EXE's file properties and the installer's publisher field.
 # Change it here only - both consumers read this one value.
 $ProjectPublisher = "sirawitbm"
-$ProjectUrl       = "https://github.com/sirawitbm/destop-park"
+$ProjectUrl       = "https://github.com/sirawitbm/desktop-park"
 
 function New-VersionInfoFile {
     <#

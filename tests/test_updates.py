@@ -23,7 +23,7 @@ class UpdateTests(unittest.TestCase):
         return mock.patch("urllib.request.urlopen", return_value=resp)
 
     def test_latest_release(self):
-        page = "https://github.com/sirawitbm/destop-park/releases/tag/v0.3.0"
+        page = "https://github.com/sirawitbm/desktop-park/releases/tag/v0.3.0"
         with self.fake('{"tag_name": "v0.3.0", "html_url": "%s"}' % page):
             self.assertEqual(updates.latest_release(), ("0.3.0", page))
 

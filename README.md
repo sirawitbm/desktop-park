@@ -6,9 +6,9 @@ Little pixel-art pets and plants that live on top of your Windows screen.
 
 The whole screen is the park, but it never gets in your way: clicks on empty
 space go straight through to your apps. Only the pets and decorations
-themselves can be grabbed. A small floating board in a cozy pixel-game style
-lets you add things, draw your own, change the weather, and lock or hide the
-park - and folds down into a hotbar that fits inside your taskbar.
+themselves can be grabbed. A small floating board lets you add things, draw
+your own, change the weather, and lock or hide the park - and folds down into
+a slim bar that fits inside your taskbar.
 
 - **18 animated pets:** cat, dog, bunny, frog, duck, chick, penguin, crab,
   turtle, snail, bee, butterfly, bird, fish, ghost, jellyfish, pufferfish, slime
@@ -17,8 +17,9 @@ park - and folds down into a hotbar that fits inside your taskbar.
 - **Any picture can walk, hop, swim, fly or stay still** - your choice
 - **Weather:** sun rays, rain, snow that piles up, or wind that blows leaves
   (and your flying pets) around - or let it change by itself
-- **Taskbar hotbar:** fold the board into a slim bar with weather, hide and
+- **Taskbar bar:** fold the board into a slim bar with weather, hide and
   lock buttons, and keep it in the Windows taskbar
+- **Two looks:** clean **Modern**, or **Pixel** to match the art
 - **Two or more monitors:** choose which screen the park lives on
 
 ## Weather
@@ -42,7 +43,7 @@ click passes straight through
 
 ## Download
 
-**[Download the latest Windows release](https://github.com/sirawitbm/destop-park/releases/latest)**
+**[Download the latest Windows release](https://github.com/sirawitbm/desktop-park/releases/latest)**
 
 - `DesktopPark-vX.Y.Z-Setup.exe` - the normal install. Adds Desktop Park to
   the Start menu, no administrator access needed.
@@ -56,7 +57,7 @@ run it from source (below).
 
 ## How to use it
 
-<img align="right" width="240" src="docs/board.png" alt="The control board in a pixel-game style: inventory-like slots of pets and decorations, a green Draw your own button, weather buttons, and Lock, Hide, Clear and Screen buttons">
+<img align="right" width="240" src="docs/board.png" alt="The control board: a grid of pets and decorations, a green Draw your own button, weather buttons, and Lock, Hide park, Clear and Screen buttons">
 
 - **Add things:** click a picture on the board.
 - **Move:** drag anything in the park. Pets dropped in the air fall back down.
@@ -68,7 +69,7 @@ run it from source (below).
   around, bring it to the front, copy, edit or remove it.
 - **Weather:** the buttons under WEATHER on the board: off (the grey cloud),
   Sunny, Rain, Snow, Windy, and **Auto** to let it change by itself every few
-  minutes. Also in the tray menu and on the folded hotbar. Weather never
+  minutes. Also in the tray menu and on the folded bar. Weather never
   catches the mouse.
 - **Two monitors?** Press **Screen** on the board (or **Screen** in the tray
   menu) and pick where the park lives. Everything keeps its place, pets on
@@ -76,20 +77,26 @@ run it from source (below).
   monitor is unplugged, the park moves to your main screen and comes back
   when you plug it in again.
 - **Lock:** clicks go through everything, even the pets. Good for gaming.
-- **Hide / Show:** hides the whole park (and its weather). Also on the folded
-  hotbar and in the tray menu (the fish icon by the clock).
+- **Hide park / Show park:** hides the whole park (and its weather). Also on
+  the folded bar and in the tray menu (the fish icon by the clock).
 - **Fold the board** with the "-" button in its title bar. It becomes a slim
-  hotbar that fits **inside the Windows taskbar** - drag it there by the
+  bar that fits **inside the Windows taskbar** - drag it there by the
   fish. Its bottom edge stays put, so the arrow button opens the board
   upward again. The "x" button hides the board into the tray icon.
 
 <br clear="right">
 
-![The folded hotbar: the fish, a weather button showing rain, an eye button to hide the park, a padlock button to lock it, and buttons to open or close the board](docs/hotbar.png)
+![The folded bar in both looks: the fish, a weather button, an eye button to hide the park, a padlock button to lock it, a green New! button when an update is out, and buttons to open or close the board](docs/hotbar.png)
+
+**Two looks:** right-click the fish in the tray and pick **Look > Modern** (the
+default) or **Look > Pixel**, a modern pixel-art style with a pixel font that
+matches the pets. It switches right away and is remembered.
+
+![The board in the Modern look and in the Pixel look, side by side](docs/looks.png)
 
 **Updates:** Desktop Park checks GitHub for a new version a few seconds after
 it starts and every 6 hours. If there is one, a green bar appears on the
-board (a small green **NEW!** button on the folded hotbar) and in the tray
+board (a small green **New!** button on the folded bar) and in the tray
 menu: **Get it** opens the download page, **Later** stays quiet about that
 version. It only reads the version number - nothing
 is downloaded or installed by itself.
@@ -143,8 +150,8 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 | `art.py`, `art_pack.py` | The built-in pixel art, written as rows of letters |
 | `sprites.py` | Turns the art into images |
 | `store.py` | Saves and loads the park safely (with a backup copy) |
-| `ui_style.py` | The pixel-game look: fonts, pixel frames, colours |
-| `assets/fonts/` | The two pixel fonts and their licenses |
+| `ui_style.py` | The two looks (Modern and Pixel): colours, fonts, pixel frames |
+| `assets/fonts/` | The pixel font and its license |
 
 The park is a frameless, see-through, always-on-top window. Windows passes
 clicks on fully transparent pixels through to whatever is underneath, so only
@@ -159,11 +166,10 @@ desktop pets like Shimeji, eSheep and Desktop Goose. The floating control
 board is modelled on my earlier app,
 [Kanban Overlay](https://github.com/sirawitbm/kanban-overlay).
 
-**Fonts:** [Pixelify Sans](https://github.com/eifetx/Pixelify-Sans) by the
-Pixelify Sans Project Authors and [Silkscreen](https://github.com/googlefonts/silkscreen)
-by Jason Kottke, both under the SIL Open Font License 1.1.
+**Font:** the Pixel look uses [Pixelify Sans](https://github.com/eifetx/Pixelify-Sans)
+by the Pixelify Sans Project Authors, under the SIL Open Font License 1.1.
 
-**Colours:** the newer built-in art and the interface use a palette built partly on
+**Colours:** the newer built-in art uses a palette built partly on
 [Sweetie 16](https://lospec.com/palette-list/sweetie-16) by GrafxKid. The
 editor's first 16 colours are the [PICO-8](https://www.lexaloffle.com/pico-8.php)
 palette by Lexaloffle Games.

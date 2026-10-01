@@ -10,7 +10,7 @@ import re
 import urllib.error
 import urllib.request
 
-REPO = "sirawitbm/destop-park"
+REPO = "sirawitbm/desktop-park"
 LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
 

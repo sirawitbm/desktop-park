@@ -30,15 +30,13 @@ whichever PySide6 you install.
 
 ## Fonts
 
-Both fonts are bundled in `assets/fonts/` with their license files and are
-used unmodified. They are licensed under the SIL Open Font License 1.1
-(<https://openfontlicense.org>), which allows bundling them with software.
+The font is bundled in `assets/fonts/` with its license file and is used
+unmodified. It is licensed under the SIL Open Font License 1.1
+(<https://openfontlicense.org>), which allows bundling it with software. It is
+used by the Pixel look.
 
 - **Pixelify Sans** - Copyright 2021 The Pixelify Sans Project Authors
   (<https://github.com/eifetx/Pixelify-Sans>). License: `assets/fonts/OFL-PixelifySans.txt`.
-- **Silkscreen** - Copyright 2001 The Silkscreen Project Authors
-  (<https://github.com/googlefonts/silkscreen>), originally by Jason Kottke.
-  License: `assets/fonts/OFL-Silkscreen.txt`.
 
 ## Colour palettes
 
@@ -46,8 +44,7 @@ No art was copied. Two published colour palettes were used as starting
 points for the colours:
 
 - **Sweetie 16** by GrafxKid - 11 of its 16 colours are in the shared
-  palette of the newer built-in art (`art_pack.py`), and it is the palette
-  of the whole interface (`ui_style.py`).
+  palette of the newer built-in art (`art_pack.py`).
   <https://lospec.com/palette-list/sweetie-16>
 - **PICO-8 palette** by Lexaloffle Games - the first 16 colours of the
   drawing editor's colour picker. <https://www.lexaloffle.com/pico-8.php>

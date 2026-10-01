@@ -122,5 +122,64 @@ class FoldedBarTests(unittest.TestCase):
         self.assertEqual((b.x(), b.y()), (0, 0))
 
 
+@unittest.skipIf(QApplication is None, "PySide6 not installed")
+class LookTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def tearDown(self):
+        import ui_style
+        ui_style.install(self.app, "modern")
+
+    def settle(self):
+        for _ in range(5):
+            self.app.processEvents()
+
+    def test_both_looks_fold_into_the_taskbar(self):
+        import board
+        import sprites
+        import ui_style
+        for theme in ui_style.THEMES:
+            ui_style.install(self.app, theme)
+            b = board.Board(sprites.Library([]))
+            b.place = lambda x, y, rect, b=b: b.move(int(x), int(y))
+            b.move(-9000, -8000)
+            b.show()
+            b.set_collapsed(True)
+            self.settle()
+            self.assertLessEqual(b.height(), 48, theme)
+            b.close()
+
+    def test_switching_keeps_state(self):
+        import board
+        import sprites
+        import ui_style
+        b = board.Board(sprites.Library([]))
+        b.place = lambda x, y, rect: b.move(int(x), int(y))
+        b.move(-9000, -8000)
+        b.show()
+        b.set_locked(True)
+        b.set_hidden(True)
+        b.set_weather("rain")
+        self.assertEqual(b.hide_btn.text(), "Show park")          # the original wording
+        ui_style.install(self.app, "pixel")
+        b.apply_theme("pixel")
+        self.assertTrue(b.lock_btn.isChecked() and b.quick_lock.isChecked())
+        self.assertEqual(b.hide_btn.text(), "Show")
+        self.assertTrue(b.weather_btns["rain"].isChecked())
+        self.assertFalse(b.draw_btn.icon().isNull())              # pixel look has icons
+        ui_style.install(self.app, "modern")
+        b.apply_theme("modern")
+        self.assertTrue(b.draw_btn.icon().isNull())
+        self.assertEqual(b.weather_btns["clear"].text(), "Off")
+        b.close()
+
+    def test_theme_is_saved(self):
+        import store
+        self.assertEqual(store.clean({"theme": "pixel"})["theme"], "pixel")
+        self.assertEqual(store.clean({"theme": "neon"})["theme"], "modern")
+
+
 if __name__ == "__main__":
     unittest.main()

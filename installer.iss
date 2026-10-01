@@ -8,7 +8,7 @@
   #define MyAppPublisher "Desktop Park"
 #endif
 #ifndef MyAppURL
-  #define MyAppURL "https://github.com/sirawitbm/destop-park"
+  #define MyAppURL "https://github.com/sirawitbm/desktop-park"
 #endif
 
 #define MyAppName "Desktop Park"
