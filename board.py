@@ -1,5 +1,6 @@
-"""The floating control board: pick things to add, draw your own, lock or
-hide the park. Drag it by the title bar; "-" folds it down to just the bar."""
+"""The floating control board: pick things to add, draw your own, change the
+weather, lock or hide the park. Drag it by the title bar. Folded, it becomes
+a slim hotbar that fits inside the Windows taskbar."""
 
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QActionGroup, QGuiApplication, QIcon, QPixmap
@@ -8,44 +9,53 @@ from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout
                                QVBoxLayout, QWidget)
 
 import art as artmod
+import ui_style
 import weather as weathermod
 from sprites import frame_image
 
 COLS = 5
-FULL_WIDTH = COLS * 50 + 34
-STYLE = """
-#board { background: #1d2230; border: 1px solid #3a4258; border-radius: 10px; }
-QLabel { color: #c9d1e6; font: 9pt 'Segoe UI'; }
-QLabel#title { color: #ffffff; font: bold 10pt 'Segoe UI'; }
-QLabel#section { color: #8d97b3; font: bold 8pt 'Segoe UI'; padding-top: 4px; }
-QLabel#hint { color: #6f7893; font: 8pt 'Segoe UI'; }
-QToolButton#thumb { background: #262c3d; border: 1px solid #2f364a; border-radius: 6px; }
-QToolButton#thumb:hover { background: #33405c; border-color: #5b7bd5; }
-QToolButton#head { color: #c9d1e6; background: transparent; border: none;
-                   font: bold 11pt 'Segoe UI'; padding: 0 6px; }
-QToolButton#head:hover { color: #ffffff; background: #33405c; border-radius: 4px; }
-QToolButton#quick { background: #262c3d; border: 1px solid #2f364a; border-radius: 6px;
-                    padding: 2px 4px; min-width: 22px; min-height: 22px; }
-QToolButton#quick:hover { background: #33405c; border-color: #5b7bd5; }
-QToolButton#quick:checked { background: #5b7bd5; border-color: #7d98e6; }
-QToolButton#quick::menu-indicator { image: none; width: 0; }
-QToolButton#newver { color: #ffffff; background: #3f7d5a; border: 1px solid #58a078;
-                     border-radius: 6px; padding: 2px 6px; font: bold 8pt 'Segoe UI'; }
-QPushButton { color: #e6ebf7; background: #2c3449; border: 1px solid #3a4258;
-              border-radius: 6px; padding: 5px 8px; font: 9pt 'Segoe UI'; }
-QPushButton:hover { background: #3a4767; }
-QPushButton:checked { background: #5b7bd5; border-color: #7d98e6; }
-QPushButton#draw { background: #3f7d5a; border-color: #58a078; }
-QPushButton#draw:hover { background: #4b9a6d; }
-QFrame#update { background: #24352d; border: 1px solid #3f7d5a; border-radius: 6px; }
-QLabel#updatetext { color: #c8f0d4; font: 9pt 'Segoe UI'; }
-QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; border: none; }
-QScrollBar:vertical { background: transparent; width: 8px; }
-QScrollBar::handle:vertical { background: #3a4258; border-radius: 4px; min-height: 20px; }
-QScrollBar::add-line, QScrollBar::sub-line { height: 0; }
-QMenu { background: #262c3d; color: #e6ebf7; border: 1px solid #3a4258; }
-QMenu::item:selected { background: #5b7bd5; }
-"""
+SLOT = 46
+FULL_WIDTH = COLS * SLOT + (COLS - 1) * 4 + 50
+ICON = QSize(18, 18)
+
+
+def _icon(rows, scale=2):
+    pic = {"palette": artmod.WEATHER_ICON_PALETTE, "frames": [rows]}
+    img = frame_image(pic, rows)
+    return QPixmap.fromImage(img.scaled(img.width() * scale, img.height() * scale))
+
+
+def _ui_icon(name, scale=2):
+    rows = artmod.UI_ICONS.get(name) or artmod.WEATHER_ICONS[name]
+    return QIcon(_icon(rows, scale))
+
+
+def _button(text="", icon=None, tip="", checkable=False, name=None):
+    b = QPushButton(text)
+    if name:
+        b.setObjectName(name)
+    if icon:
+        b.setIcon(_ui_icon(icon))
+        b.setIconSize(ICON)
+    b.setToolTip(tip)
+    b.setCheckable(checkable)
+    b.setCursor(Qt.PointingHandCursor)
+    return b
+
+
+def _square(icon, tip, name="head", size=22, scale=2, checkable=False):
+    b = QToolButton(objectName=name)
+    b.setIcon(_ui_icon(icon, scale))
+    b.setIconSize(QSize(size - 8, size - 8))
+    b.setFixedSize(size, size)
+    b.setToolTip(tip)
+    b.setCheckable(checkable)
+    b.setCursor(Qt.PointingHandCursor)
+    return b
+
+
+def _section(text):
+    return QLabel(text, objectName="section")
 
 
 class Board(QWidget):
@@ -65,11 +75,13 @@ class Board(QWidget):
 
     def __init__(self, library):
         super().__init__(None, Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
+        ui_style.install()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle("Desktop Park")
         self.library = library
         self._drag = None
         self.collapsed = False
+        self._update_version = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -78,42 +90,38 @@ class Board(QWidget):
         outer.setSizeConstraint(QLayout.SetFixedSize)
         self.frame = QFrame(objectName="board")
         outer.addWidget(self.frame)
-        self.frame.setStyleSheet(STYLE)
         lay = QVBoxLayout(self.frame)
-        lay.setContentsMargins(10, 6, 10, 10)
-        lay.setSpacing(6)
+        lay.setContentsMargins(6, 6, 6, 8)
+        lay.setSpacing(4)
         self._lay = lay
 
-        head = QHBoxLayout()
+        # -- title bar (also the folded hotbar) ----------------------------------
+        self.titlebar = QFrame(objectName="titlebar")
+        head = QHBoxLayout(self.titlebar)
+        head.setContentsMargins(6, 3, 3, 3)
         head.setSpacing(4)
         self.logo = QLabel()
-        self.logo.setPixmap(library.thumbnail("fish", 20))
+        self.logo.setPixmap(library.thumbnail("fish", 24))
         self.logo.setToolTip("Desktop Park - drag me anywhere, even into the taskbar")
-        self.title = QLabel("Desktop Park", objectName="title")
+        self.title = QLabel("DESKTOP PARK", objectName="title")
         head.addWidget(self.logo)
         head.addWidget(self.title)
 
         # the folded bar's quick controls: weather, hide, lock (and "new version")
         self.quick = QWidget()
         q = QHBoxLayout(self.quick)
-        q.setContentsMargins(6, 0, 0, 0)
-        q.setSpacing(4)
-        self.quick_weather = QToolButton(objectName="quick")
-        self.quick_weather.setIconSize(QSize(18, 18))
+        q.setContentsMargins(4, 0, 0, 0)
+        q.setSpacing(3)
+        self.quick_weather = _square("clear", "Weather", name="quick", size=28)
         self.quick_weather.setPopupMode(QToolButton.InstantPopup)
-        self.quick_weather.setToolTip("Weather")
         self.quick_weather.setMenu(self._weather_menu())
-        self.quick_hide = QToolButton(objectName="quick", checkable=True)
-        self.quick_hide.setIcon(QIcon(_icon(artmod.UI_ICONS["eye"])))
-        self.quick_hide.setIconSize(QSize(18, 18))
-        self.quick_hide.setToolTip("Hide the park")
+        self.quick_hide = _square("eye", "Hide the park", name="quick", size=28, checkable=True)
         self.quick_hide.toggled.connect(self._hide)
-        self.quick_lock = QToolButton(objectName="quick", checkable=True)
-        self.quick_lock.setIcon(QIcon(_icon(artmod.UI_ICONS["lock"])))
-        self.quick_lock.setIconSize(QSize(18, 18))
-        self.quick_lock.setToolTip("Lock: clicks go through everything in the park")
+        self.quick_lock = _square("lock", "Lock: clicks go through everything in the park",
+                                  name="quick", size=28, checkable=True)
         self.quick_lock.toggled.connect(self._lock)
-        self.quick_update = QToolButton(text="New!", objectName="newver")
+        self.quick_update = QToolButton(text="NEW!", objectName="newver")
+        self.quick_update.setFixedHeight(28)
         self.quick_update.clicked.connect(self.update_open.emit)
         self.quick_update.hide()
         for w in (self.quick_weather, self.quick_hide, self.quick_lock, self.quick_update):
@@ -121,99 +129,91 @@ class Board(QWidget):
         self.quick.hide()
         head.addWidget(self.quick)
         head.addStretch(1)
-        self.fold_btn = QToolButton(text="–", objectName="head")
-        self.fold_btn.setToolTip("Fold the board")
+        self.fold_btn = _square("min", "Fold the board", scale=2)
         self.fold_btn.clicked.connect(self.toggle_collapsed)
-        close_btn = QToolButton(text="×", objectName="head")
-        close_btn.setToolTip("Hide the board (bring it back from the tray icon)")
+        close_btn = _square("close", "Hide the board (bring it back from the tray icon)",
+                            name="close", scale=2)
         close_btn.clicked.connect(self._close)
         head.addWidget(self.fold_btn)
         head.addWidget(close_btn)
-        lay.addLayout(head)
+        lay.addWidget(self.titlebar)
 
-        self.body = QWidget()
-        body = QVBoxLayout(self.body)
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(6)
-        # shown only when a newer version is on GitHub (visible even when folded)
+        # -- update notice ----------------------------------------------------------
         self.update_bar = QFrame(objectName="update")
         ub = QHBoxLayout(self.update_bar)
-        ub.setContentsMargins(8, 4, 4, 4)
+        ub.setContentsMargins(8, 3, 3, 3)
         ub.setSpacing(4)
         self.update_text = QLabel("", objectName="updatetext")
-        get = QPushButton("Get it", objectName="draw")
-        get.setToolTip("Open the download page on GitHub")
+        get = _button("Get it", tip="Open the download page on GitHub", name="draw")
         get.clicked.connect(self.update_open.emit)
-        later = QPushButton("Later")
-        later.setToolTip("Don't remind me about this version")
+        later = _button("Later", tip="Don't remind me about this version")
         later.clicked.connect(self.update_later.emit)
         ub.addWidget(self.update_text, 1)
         ub.addWidget(get)
         ub.addWidget(later)
         self.update_bar.hide()
         lay.addWidget(self.update_bar)
+
+        # -- body ------------------------------------------------------------------
+        self.body = QWidget()
+        body = QVBoxLayout(self.body)
+        body.setContentsMargins(2, 0, 2, 0)
+        body.setSpacing(4)
         lay.addWidget(self.body)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scroll.setFixedHeight(360)
+        self.scroll.setFixedHeight(330)
         self.grid_host = QWidget()
         self.grid = QVBoxLayout(self.grid_host)
-        self.grid.setContentsMargins(0, 0, 4, 0)
+        self.grid.setContentsMargins(0, 0, 6, 0)
         self.grid.setSpacing(2)
         self.scroll.setWidget(self.grid_host)
         body.addWidget(self.scroll)
 
-        draw = QPushButton("✏  Draw your own", objectName="draw")
+        draw = _button("Draw your own", icon="pencil", name="draw",
+                       tip="Draw a new pet or decoration")
+        draw.setFixedHeight(34)
         draw.clicked.connect(self.draw_new.emit)
         body.addWidget(draw)
 
-        body.addWidget(QLabel("WEATHER", objectName="section"))
+        body.addWidget(_section("WEATHER"))
         wrow = QHBoxLayout()
         wrow.setSpacing(4)
         self.weather_btns = {}
         for kind in weathermod.KINDS:
-            b = QPushButton(checkable=True)
-            b.setToolTip(weathermod.LABELS[kind])
-            if kind in artmod.WEATHER_ICONS:
-                b.setIcon(QIcon(_icon(artmod.WEATHER_ICONS[kind])))
-                b.setIconSize(QSize(18, 18))
-            else:
-                b.setText("Off")
-                b.setToolTip("No weather")
-            b.setFixedHeight(30)
+            tip = "No weather" if kind == "clear" else weathermod.LABELS[kind]
+            b = _square(kind, tip, name="wbtn", size=34, checkable=True)
             b.clicked.connect(lambda _=False, k=kind: self._pick_weather(k))
             wrow.addWidget(b)
             self.weather_btns[kind] = b
-        self.auto_btn = QPushButton("Auto", checkable=True)
-        self.auto_btn.setFixedHeight(30)
-        self.auto_btn.setToolTip("Let the weather change by itself every few minutes")
+        self.auto_btn = _button("Auto", checkable=True,
+                                tip="Let the weather change by itself every few minutes")
+        self.auto_btn.setFixedHeight(34)
         self.auto_btn.toggled.connect(self.weather_auto.emit)
-        wrow.addWidget(self.auto_btn)
+        wrow.addWidget(self.auto_btn, 1)
         body.addLayout(wrow)
 
+        body.addWidget(_section("PARK"))
         row = QHBoxLayout()
-        self.lock_btn = QPushButton("Lock", checkable=True)
-        self.lock_btn.setToolTip("Lock: clicks go through everything in the park")
+        row.setSpacing(4)
+        self.lock_btn = _button("Lock", icon="lock", checkable=True,
+                                tip="Lock: clicks go through everything in the park")
         self.lock_btn.toggled.connect(self._lock)
-        self.hide_btn = QPushButton("Hide park", checkable=True)
+        self.hide_btn = _button("Hide", icon="eye", checkable=True, tip="Hide the park")
         self.hide_btn.toggled.connect(self._hide)
-        clear = QPushButton("Clear")
-        clear.setToolTip("Remove everything from the park")
+        clear = _button("Clear", icon="trash", tip="Remove everything from the park")
         clear.clicked.connect(self.clear_park.emit)
-        row.addWidget(self.lock_btn)
-        row.addWidget(self.hide_btn)
-        row.addWidget(clear)
-        self.screen_btn = QPushButton("Screen")
-        self.screen_btn.setToolTip("Move the park to another monitor")
+        self.screen_btn = _button("", icon="screen", tip="Move the park to another monitor")
         self.screen_btn.setVisible(False)
-        row.addWidget(self.screen_btn)
+        for b in (self.lock_btn, self.hide_btn, clear, self.screen_btn):
+            b.setFixedHeight(32)
+            row.addWidget(b)
         body.addLayout(row)
 
-        hint = QLabel("Click a picture to add it. In the park: drag to move,\n"
-                      "click to poke, scroll to resize, right-click for options.",
-                      objectName="hint")
+        hint = QLabel("CLICK A PICTURE TO ADD IT.\nIN THE PARK: DRAG, CLICK, SCROLL,\n"
+                      "RIGHT-CLICK FOR MORE.", objectName="hint")
         body.addWidget(hint)
 
         self.frame.setFixedWidth(FULL_WIDTH)
@@ -228,41 +228,38 @@ class Board(QWidget):
         pets = [a for a in self.library.builtin.values() if a["kind"] == "pet"]
         decos = [a for a in self.library.builtin.values() if a["kind"] != "pet"]
         mine = self.library.custom_list()
-        self._section("PETS", pets)
-        self._section("NATURE & DECOR", decos)
+        self._slots("PETS", pets)
+        self._slots("NATURE & DECOR", decos)
         if mine:
-            self._section("MY DRAWINGS  (right-click to edit)", mine, custom=True)
+            self._slots("MY DRAWINGS", mine, custom=True)
         else:
-            self.grid.addWidget(QLabel("MY DRAWINGS", objectName="section"))
-            self.grid.addWidget(QLabel("Nothing yet - press “Draw your own”.",
-                                       objectName="hint"))
+            self.grid.addWidget(_section("MY DRAWINGS"))
+            self.grid.addWidget(QLabel("Nothing yet - draw one below!", objectName="empty"))
         self.grid.addStretch(1)
 
-    def _section(self, label, pictures, custom=False):
-        self.grid.addWidget(QLabel(label, objectName="section"))
+    def _slots(self, label, pictures, custom=False):
+        self.grid.addWidget(_section(label))
         host = QWidget()
         g = QGridLayout(host)
         g.setContentsMargins(0, 0, 0, 0)
         g.setSpacing(4)
         for i, picture in enumerate(pictures):
             b = QToolButton(objectName="thumb")
-            b.setIcon(QIcon(self.library.thumbnail(picture["id"], 36)))
-            b.setIconSize(QSize(36, 36))
-            b.setFixedSize(46, 46)
-            b.setToolTip(picture["name"])
+            b.setIcon(QIcon(self.library.thumbnail(picture["id"], 38)))
+            b.setIconSize(QSize(38, 38))
+            b.setFixedSize(SLOT, SLOT)
+            b.setCursor(Qt.PointingHandCursor)
+            b.setToolTip(picture["name"] + ("  (right-click to edit)" if custom else ""))
             b.clicked.connect(lambda _=False, i=picture["id"]: self.add_art.emit(i))
             b.setContextMenuPolicy(Qt.CustomContextMenu)
             b.customContextMenuRequested.connect(
                 lambda pos, i=picture["id"], b=b, c=custom: self._thumb_menu(i, b.mapToGlobal(pos), c))
             g.addWidget(b, i // COLS, i % COLS)
-        for c in range(COLS):
-            g.setColumnStretch(c, 0)
         g.setColumnStretch(COLS, 1)
         self.grid.addWidget(host)
 
     def _thumb_menu(self, art_id, pos, custom):
         menu = QMenu(self)
-        menu.setStyleSheet(STYLE)
         menu.addAction("Add to park", lambda: self.add_art.emit(art_id))
         if custom:
             menu.addAction("Edit drawing", lambda: self.edit_art.emit(art_id))
@@ -292,11 +289,10 @@ class Board(QWidget):
 
     def _weather_menu(self):
         menu = QMenu(self)
-        menu.setStyleSheet(STYLE)
         group = QActionGroup(menu)
         self._weather_actions = {}
         for kind in weathermod.KINDS:
-            a = menu.addAction(QIcon(_icon(artmod.WEATHER_ICONS[kind])), weathermod.LABELS[kind])
+            a = menu.addAction(_ui_icon(kind), weathermod.LABELS[kind])
             a.setCheckable(True)
             group.addAction(a)
             a.triggered.connect(lambda _=False, k=kind: self._pick_weather(k))
@@ -316,7 +312,7 @@ class Board(QWidget):
             b.setChecked(k == kind)
         for k, a in self._weather_actions.items():
             a.setChecked(k == kind)
-        self.quick_weather.setIcon(QIcon(_icon(artmod.WEATHER_ICONS.get(kind, artmod.WEATHER_ICONS["clear"]))))
+        self.quick_weather.setIcon(_ui_icon(kind if kind in artmod.WEATHER_ICONS else "clear"))
         self.quick_weather.setToolTip("Weather: %s" % weathermod.LABELS.get(kind, kind))
 
     def set_weather_auto(self, on):
@@ -333,14 +329,13 @@ class Board(QWidget):
         self._keep_bottom(self._show_update_parts)
 
     def _show_update_parts(self):
-        version = getattr(self, "_update_version", None)
-        # big bar on the open board, a small "New!" button on the folded bar
+        version = self._update_version
+        # big bar on the open board, a small "NEW!" button on the folded bar
         self.update_bar.setVisible(bool(version) and not self.collapsed)
         self.quick_update.setVisible(bool(version) and self.collapsed)
 
     def set_screen_menu(self, menu, show):
         """The app hands over the menu listing the monitors."""
-        menu.setStyleSheet(STYLE)
         self.screen_btn.setMenu(menu)
         self.screen_btn.setVisible(show)
 
@@ -349,7 +344,7 @@ class Board(QWidget):
             b.blockSignals(True)
             b.setChecked(on)
             b.blockSignals(False)
-        self.hide_btn.setText("Show park" if on else "Hide park")
+        self.hide_btn.setText("Show" if on else "Hide")
         self.quick_hide.setToolTip("Show the park" if on else "Hide the park")
 
     def toggle_collapsed(self):
@@ -357,21 +352,24 @@ class Board(QWidget):
         self.moved.emit()
 
     def set_collapsed(self, on):
-        """Folded, the board is a slim bar of quick controls that fits in the
-        taskbar. Its bottom edge stays put, so opening grows it upward."""
+        """Folded, the board is a slim hotbar of quick controls that fits in
+        the taskbar. Its bottom edge stays put, so opening grows it upward."""
         def change():
             self.collapsed = on
             self.body.setVisible(not on)
             self.title.setVisible(not on)
             self.quick.setVisible(on)
             if on:
-                self._lay.setContentsMargins(6, 4, 4, 4)
+                self._lay.setContentsMargins(0, 0, 0, 0)
                 self.frame.setMinimumWidth(0)
                 self.frame.setMaximumWidth(16777215)
             else:
-                self._lay.setContentsMargins(10, 6, 10, 10)
+                self._lay.setContentsMargins(6, 6, 6, 8)
                 self.frame.setFixedWidth(FULL_WIDTH)
-            self.fold_btn.setText("\u25b4" if on else "\u2013")
+            # folded, the hotbar is the whole window: drop the outer frame
+            self.frame.setStyleSheet(
+                "QFrame#board { border-image: none; border-width: 0px; }" if on else "")
+            self.fold_btn.setIcon(_ui_icon("up" if on else "min"))
             self.fold_btn.setToolTip("Open the board (it grows upward)" if on else "Fold the board")
             self._show_update_parts()
         self._keep_bottom(change)
@@ -393,8 +391,11 @@ class Board(QWidget):
         self.closed.emit()
 
     # -- dragging by the title bar --------------------------------------------
+    def _on_titlebar(self, pos):
+        return self.titlebar.geometry().contains(self.frame.mapFrom(self, pos.toPoint()))
+
     def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and e.position().y() < 34:
+        if e.button() == Qt.LeftButton and self._on_titlebar(e.position()):
             self._drag = e.globalPosition().toPoint() - self.pos()
 
     def mouseMoveEvent(self, e):
@@ -407,7 +408,7 @@ class Board(QWidget):
             self.moved.emit()
 
     def mouseDoubleClickEvent(self, e):
-        if e.position().y() < 34:
+        if self._on_titlebar(e.position()):
             self.toggle_collapsed()
 
     def place(self, x, y, screen_rect):
@@ -416,9 +417,3 @@ class Board(QWidget):
         x = min(max(x, screen_rect.left()), screen_rect.right() + 1 - self.width())
         y = min(max(y, screen_rect.top()), screen_rect.bottom() + 1 - self.height())
         self.move(QPoint(int(x), int(y)))
-
-
-def _icon(rows):
-    pic = {"palette": artmod.WEATHER_ICON_PALETTE, "frames": [rows]}
-    img = frame_image(pic, rows)
-    return QPixmap.fromImage(img.scaled(img.width() * 2, img.height() * 2))

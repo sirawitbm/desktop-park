@@ -14,7 +14,8 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 import store
 import updates
 import winutil
-from board import STYLE as BOARD_STYLE, Board
+import ui_style
+from board import Board
 from editor import Editor
 from park import ParkWindow
 from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
@@ -44,6 +45,7 @@ class App:
     def __init__(self, qapp):
         self.qapp = qapp
         qapp.setQuitOnLastWindowClosed(False)   # closing the editor must not quit
+        ui_style.install(qapp)                  # pixel fonts and frames for every window
         self.quitting = False
         self.data = store.load()
         self.library = Library(self.data["custom_art"])
@@ -143,7 +145,6 @@ class App:
         box = QMessageBox(QMessageBox.Question, "Desktop Park",
                           "Remove everything from the park?\n(Your drawings are kept.)",
                           QMessageBox.Yes | QMessageBox.No, self.board)
-        box.setStyleSheet(BOARD_STYLE + "QMessageBox{background:#1d2230;} QLabel{color:#e6ebf7;}")
         if box.exec() == QMessageBox.Yes:
             self.park.clear()
 
@@ -349,7 +350,6 @@ class App:
         box = QMessageBox(QMessageBox.Question, "Desktop Park",
                           "Delete “%s”?\nAny copies in the park go too." % picture["name"],
                           QMessageBox.Yes | QMessageBox.No, self.board)
-        box.setStyleSheet(BOARD_STYLE + "QMessageBox{background:#1d2230;} QLabel{color:#e6ebf7;}")
         if box.exec() != QMessageBox.Yes:
             return
         self.park.remove_art(art_id)
@@ -362,7 +362,6 @@ class App:
         self.tray = QSystemTrayIcon(QIcon(self.library.thumbnail("fish", 32)))
         self.tray.setToolTip("Desktop Park")
         menu = QMenu()
-        menu.setStyleSheet(BOARD_STYLE)
         menu.addAction("Show the board", self.show_board)
         self.hide_action = QAction("Hide park", menu, checkable=True)
         self.hide_action.toggled.connect(lambda on: on != self.data["hidden"] and self.set_hidden(on))

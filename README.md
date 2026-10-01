@@ -136,6 +136,7 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 | `art.py`, `art_pack.py` | The built-in pixel art, written as rows of letters |
 | `sprites.py` | Turns the art into images |
 | `store.py` | Saves and loads the park safely (with a backup copy) |
+| `ui_style.py` | The pixel-game look: fonts, pixel frames, colours |
 
 The park is a frameless, see-through, always-on-top window. Windows passes
 clicks on fully transparent pixels through to whatever is underneath, so only
@@ -150,7 +151,11 @@ desktop pets like Shimeji, eSheep and Desktop Goose. The floating control
 board is modelled on my earlier app,
 [Kanban Overlay](https://github.com/sirawitbm/kanban-overlay).
 
-**Colours:** the newer built-in art uses a palette built partly on
+**Fonts:** [Pixelify Sans](https://github.com/eifetx/Pixelify-Sans) by the
+Pixelify Sans Project Authors and [Silkscreen](https://github.com/googlefonts/silkscreen)
+by Jason Kottke, both under the SIL Open Font License 1.1.
+
+**Colours:** the newer built-in art and the interface use a palette built partly on
 [Sweetie 16](https://lospec.com/palette-list/sweetie-16) by GrafxKid. The
 editor's first 16 colours are the [PICO-8](https://www.lexaloffle.com/pico-8.php)
 palette by Lexaloffle Games.

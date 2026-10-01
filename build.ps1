@@ -28,6 +28,7 @@ try {
         --exclude-module PySide6.QtPdf `
         --exclude-module PySide6.QtWebEngineCore `
         --exclude-module tkinter `
+        --add-data "assets\fonts;assets\fonts" `
         (Join-Path $PSScriptRoot "desktop_park.py")
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $outputPath)) {
         throw "Desktop Park build failed with exit code $LASTEXITCODE."

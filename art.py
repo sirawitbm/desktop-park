@@ -362,7 +362,8 @@ PARTICLES = {
 
 # Icons for the weather buttons on the board.
 WEATHER_ICON_PALETTE = {"y": "#ffcd4f", "Y": "#fff1a8", "w": "#f4f4f4",
-                        "S": "#94b0c2", "c": "#41a6f6", "C": "#73eff7"}
+                        "S": "#94b0c2", "c": "#41a6f6", "C": "#73eff7",
+                        "k": "#1a1c2c", "p": "#ff8a9a", "e": "#e8c48c", "r": "#b13e53"}
 WEATHER_ICONS = {
     "clear": [
         ".........",
@@ -423,6 +424,66 @@ WEATHER_ICONS = {
 
 # Icons for the folded board's quick buttons (same palette as the weather ones).
 UI_ICONS = {
+    "pencil": [
+        ".......pp",
+        "......ypp",
+        ".....yyy.",
+        "....yyy..",
+        "...yyy...",
+        "..yyy....",
+        ".eey.....",
+        ".ke......",
+        "k........",
+    ],
+    "trash": [
+        "...www...",
+        "wwwwwwwww",
+        ".........",
+        ".wSwSwSw.",
+        ".wSwSwSw.",
+        ".wSwSwSw.",
+        ".wSwSwSw.",
+        ".wwwwwww.",
+        ".........",
+    ],
+    "screen": [
+        "wwwwwwwww",
+        "wcccccccw",
+        "wcCcccccw",
+        "wcccccccw",
+        "wcccccccw",
+        "wwwwwwwww",
+        "....w....",
+        "..wwwww..",
+        ".........",
+    ],
+    "min": [
+        ".......",
+        ".......",
+        ".......",
+        "wwwwwww",
+        "wwwwwww",
+        ".......",
+        ".......",
+    ],
+    "up": [
+        ".......",
+        "...w...",
+        "..www..",
+        ".wwwww.",
+        "wwwwwww",
+        ".......",
+        ".......",
+    ],
+    "close": [
+        ".......",
+        "ww...ww",
+        ".ww.ww.",
+        "..www..",
+        ".ww.ww.",
+        "ww...ww",
+        ".......",
+    ],
     "eye": [
         ".........",
         "..wwwww..",

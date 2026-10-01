@@ -11,27 +11,10 @@ from PySide6.QtWidgets import (QButtonGroup, QColorDialog, QComboBox, QDialog,
                                QVBoxLayout, QWidget)
 
 import art as artmod
+import ui_style
 
 SIZES = (8, 12, 16, 24, 32)
 MAX_FRAMES = 6
-STYLE = """
-QDialog { background: #1d2230; }
-QLabel { color: #c9d1e6; font: 9pt 'Segoe UI'; }
-QLabel#section { color: #8d97b3; font: bold 8pt 'Segoe UI'; }
-QLineEdit, QComboBox { color: #e6ebf7; background: #262c3d; border: 1px solid #3a4258;
-                       border-radius: 5px; padding: 4px 6px; font: 9pt 'Segoe UI'; }
-QComboBox QAbstractItemView { color: #e6ebf7; background: #262c3d;
-                              selection-background-color: #5b7bd5; }
-QPushButton, QToolButton { color: #e6ebf7; background: #2c3449; border: 1px solid #3a4258;
-                           border-radius: 6px; padding: 5px 9px; font: 9pt 'Segoe UI'; }
-QPushButton:hover, QToolButton:hover { background: #3a4767; }
-QPushButton:checked, QToolButton:checked { background: #5b7bd5; border-color: #7d98e6; }
-QPushButton#save { background: #3f7d5a; border-color: #58a078; font-weight: bold; }
-QPushButton#save:hover { background: #4b9a6d; }
-QToolButton#swatch { padding: 0; border-radius: 4px; }
-"""
-
-
 def blank(w, h):
     return [[None] * w for _ in range(h)]
 
@@ -145,7 +128,7 @@ class Editor(QDialog):
     def __init__(self, parent=None, picture=None, as_copy=False):
         super().__init__(parent, Qt.Window | Qt.WindowStaysOnTopHint)
         self.setWindowTitle("Draw - Desktop Park")
-        self.setStyleSheet(STYLE)
+        ui_style.install()
         self.tool = "pen"
         self.colour = "#ff77a8"
         self._undo = []
@@ -219,7 +202,7 @@ class Editor(QDialog):
         for i, col in enumerate(artmod.EDITOR_COLORS):
             b = QToolButton(objectName="swatch")
             b.setFixedSize(QSize(24, 24))
-            b.setStyleSheet("background: %s; border: 1px solid #11141c;" % col)
+            b.setStyleSheet("background: %s;" % col)
             b.clicked.connect(lambda _=False, c=col: self.set_colour(c))
             pal.addWidget(b, i // 8, i % 8)
         side.addLayout(pal)
@@ -273,7 +256,7 @@ class Editor(QDialog):
         self.preview = QLabel()
         self.preview.setFixedSize(96, 96)
         self.preview.setAlignment(Qt.AlignCenter)
-        self.preview.setStyleSheet("background: #262c3d; border-radius: 6px;")
+        self.preview.setObjectName("preview")
         prow.addWidget(self.preview)
         prow.addWidget(QLabel("Preview\n\nDraw it facing RIGHT -\nit turns around by itself."), 1)
         side.addLayout(prow)
@@ -321,7 +304,7 @@ class Editor(QDialog):
 
     def set_colour(self, col):
         self.colour = col
-        self.current.setStyleSheet("background: %s; border: 1px solid #11141c; border-radius: 4px;" % col)
+        self.current.setStyleSheet("background: %s; border: 2px solid %s;" % (col, ui_style.INK))
         if self.tool in ("erase", "pick"):
             self.tool = "pen"
             self.tool_group.buttons()[0].setChecked(True)
