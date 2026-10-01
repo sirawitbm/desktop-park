@@ -359,6 +359,57 @@ PARTICLES = {
     ]),
 }
 
+
+# Icons for the weather buttons on the board.
+WEATHER_ICON_PALETTE = {"y": "#ffcd4f", "Y": "#fff1a8", "w": "#f4f4f4",
+                        "S": "#94b0c2", "c": "#41a6f6", "C": "#73eff7"}
+WEATHER_ICONS = {
+    "sun": [
+        "....y....",
+        ".y.....y.",
+        "...yyy...",
+        "..yYYYy..",
+        "y.yYYYy.y",
+        "..yYYYy..",
+        "...yyy...",
+        ".y.....y.",
+        "....y....",
+    ],
+    "rain": [
+        "..www....",
+        ".wwwwww..",
+        "wwwwwwwww",
+        ".SSSSSSS.",
+        ".........",
+        "..c..c..c",
+        ".c..c..c.",
+        ".........",
+        ".c..c..c.",
+    ],
+    "snow": [
+        "....w....",
+        ".w..w..w.",
+        "..w.C.w..",
+        "...wCw...",
+        "wwCCwCCww",
+        "...wCw...",
+        "..w.C.w..",
+        ".w..w..w.",
+        "....w....",
+    ],
+    "wind": [
+        ".....ww..",
+        "......w..",
+        "wwwwwww..",
+        ".........",
+        "SSSSSSSSS",
+        "........S",
+        "wwwww..S.",
+        "....w....",
+        "...w.....",
+    ],
+}
+
 # Colours offered in the drawing editor (PICO-8-ish, plus a few naturals).
 EDITOR_COLORS = [
     "#000000", "#1d2b53", "#7e2553", "#008751", "#ab5236", "#5f574f",

@@ -10,6 +10,7 @@ import os
 import sys
 
 from art import BEHAVIORS, PIXEL_CHARS
+from weather import KINDS as WEATHER_KINDS
 
 APP_DIR = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
 
@@ -32,7 +33,8 @@ def park_file():
 
 def empty():
     return {"version": 1, "custom_art": [], "objects": [], "board": {},
-            "locked": False, "hidden": False, "seeded": False}
+            "locked": False, "hidden": False, "seeded": False,
+            "weather": "clear", "weather_auto": False, "skip_update": ""}
 
 
 def load(path=None):
@@ -108,6 +110,10 @@ def clean(raw):
     board = raw.get("board") if isinstance(raw.get("board"), dict) else {}
     data["board"] = {k: _num(board.get(k)) for k in ("x", "y") if k in board}
     data["board"]["collapsed"] = board.get("collapsed") is True
-    for key in ("locked", "hidden", "seeded"):
+    if raw.get("weather") in WEATHER_KINDS:
+        data["weather"] = raw["weather"]
+    if isinstance(raw.get("skip_update"), str):
+        data["skip_update"] = raw["skip_update"][:20]
+    for key in ("locked", "hidden", "seeded", "weather_auto"):
         data[key] = raw.get(key) is True
     return data

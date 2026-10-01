@@ -5,19 +5,32 @@ Run:  pythonw desktop_park.py
 
 import random
 import sys
+import threading
 
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtCore import QObject, QTimer, QUrl, Signal
+from PySide6.QtGui import QAction, QDesktopServices, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 import store
+import updates
 import winutil
 from board import STYLE as BOARD_STYLE, Board
 from editor import Editor
 from park import ParkWindow
+from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
+from weather_window import WeatherWindow
 from sprites import Library
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
+
+UPDATE_FIRST_MS = 5000                 # first look for a new version
+UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
+
+
+class _Inbox(QObject):
+    """Carries results from background threads safely to the main thread."""
+    update_result = Signal(object)
+
 
 # What a brand-new park starts with: (art, x as a fraction of the screen, size)
 STARTER_SCENE = [
@@ -39,6 +52,10 @@ class App:
         self._save_timer.timeout.connect(self.save)
 
         screen = qapp.primaryScreen()
+        # weather first, so it sits behind the pets
+        self.weather = WeatherWindow()
+        self.weather.fit_screen(screen)
+        self.weather.on_step = self._weather_step
         self.park = ParkWindow(self.library)
         self.park.fit_screen(screen)
         self.park.load_things(self.data["objects"])
@@ -57,6 +74,10 @@ class App:
         self.board.clear_park.connect(self.clear_park)
         self.board.moved.connect(self.save_soon)
         self.board.closed.connect(self._board_closed)
+        self.board.weather_changed.connect(self.set_weather)
+        self.board.weather_auto.connect(self.set_weather_auto)
+        self.board.update_open.connect(self.open_update)
+        self.board.update_later.connect(self.skip_update)
         area = screen.availableGeometry()
         b = self.data["board"]
         self.board.set_collapsed(b.get("collapsed", False))
@@ -65,9 +86,11 @@ class App:
 
         self._make_tray()
         self.set_locked(self.data["locked"])
+        self.set_weather(self.data["weather"])
+        self.set_weather_auto(self.data["weather_auto"])
         self.set_hidden(self.data["hidden"])
         self.board.show()
-        screen.availableGeometryChanged.connect(lambda r: self.park.fit_screen(screen))
+        screen.availableGeometryChanged.connect(lambda r: self._fit(screen))
 
         self._autosave = QTimer(interval=30000)       # pets wander; remember where
         self._autosave.timeout.connect(self.save)
@@ -76,6 +99,14 @@ class App:
         self._pin.timeout.connect(self.pin)
         self._pin.start()
         qapp.aboutToQuit.connect(self.save)
+
+        self.update = None                       # (version, url) of a newer release
+        self._inbox = _Inbox()
+        self._inbox.update_result.connect(self._update_result)
+        QTimer.singleShot(UPDATE_FIRST_MS, self._check_update)
+        self._update_timer = QTimer(interval=UPDATE_EVERY_MS)
+        self._update_timer.timeout.connect(self._check_update)
+        self._update_timer.start()
 
     # -- park actions ----------------------------------------------------------
     def _seed(self):
@@ -115,12 +146,81 @@ class App:
         self.lock_action.setChecked(on)
         self.save_soon()
 
+    def _fit(self, screen):
+        self.park.fit_screen(screen)
+        self.weather.fit_screen(screen)
+
     def set_hidden(self, on):
         self.data["hidden"] = on
+        self.weather.setVisible(not on)
         self.park.setVisible(not on)
         self.board.set_hidden(on)
         self.hide_action.setChecked(on)
         self.save_soon()
+
+    # -- weather ---------------------------------------------------------------
+    def set_weather(self, kind):
+        if kind not in WEATHER_KINDS:
+            kind = "clear"
+        self.data["weather"] = kind
+        self.weather.weather.set_kind(kind)
+        self.board.set_weather(kind)
+        for k, a in self.weather_actions.items():
+            a.setChecked(k == kind)
+        self.save_soon()
+
+    def set_weather_auto(self, on):
+        self.data["weather_auto"] = on
+        self.weather.weather.set_auto(on)
+        self.board.set_weather_auto(on)
+        self.weather_auto_action.setChecked(on)
+        self.save_soon()
+
+    def _weather_step(self, w):
+        self.park.world.wind = w.gust()
+        if w.kind != self.data["weather"]:          # auto mode changed it
+            self.set_weather(w.kind)
+
+    # -- update check -----------------------------------------------------------
+    def _check_update(self):
+        """Ask GitHub for the newest release, off the main thread. Only reads -
+        nothing is ever downloaded; we just offer a link to the page."""
+        threading.Thread(target=lambda: self._inbox.update_result.emit(updates.latest_release()),
+                         daemon=True).start()
+
+    def _update_result(self, result):
+        if not result:
+            return                               # offline or GitHub hiccup: try later
+        version, url = result
+        fresh = self.update is None
+        if updates.is_newer(version, __version__) and self.data.get("skip_update") != version:
+            self.update = (version, url)
+            if fresh:
+                self.tray.showMessage("Desktop Park", "Version %s is out. Get it from the "
+                                      "board or the tray menu." % version,
+                                      QSystemTrayIcon.Information, 6000)
+        else:
+            self.update = None
+        self._show_update()
+
+    def _show_update(self):
+        version = self.update[0] if self.update else None
+        self.board.set_update(version)
+        self.update_action.setVisible(bool(version))
+        if version:
+            self.update_action.setText("Download update %s" % version)
+
+    def open_update(self):
+        if self.update:
+            QDesktopServices.openUrl(QUrl(self.update[1]))
+
+    def skip_update(self):
+        """Later: stay quiet about this version (a newer one still shows)."""
+        if self.update:
+            self.data["skip_update"] = self.update[0]
+            self.save_soon()
+        self.update = None
+        self._show_update()
 
     # -- drawings --------------------------------------------------------------
     def open_editor(self, art_id):
@@ -178,7 +278,22 @@ class App:
         self.lock_action = QAction("Lock (clicks go through)", menu, checkable=True)
         self.lock_action.toggled.connect(lambda on: on != self.data["locked"] and self.set_locked(on))
         menu.addAction(self.lock_action)
+        wmenu = menu.addMenu("Weather")
+        self.weather_actions = {}
+        for kind in WEATHER_KINDS:
+            a = QAction(WEATHER_LABELS[kind], wmenu, checkable=True)
+            a.triggered.connect(lambda _=False, k=kind: self.set_weather(k))
+            wmenu.addAction(a)
+            self.weather_actions[kind] = a
+        wmenu.addSeparator()
+        self.weather_auto_action = QAction("Changes by itself", wmenu, checkable=True)
+        self.weather_auto_action.triggered.connect(self.set_weather_auto)
+        wmenu.addAction(self.weather_auto_action)
         menu.addSeparator()
+        self.update_action = menu.addAction("Download update", self.open_update)
+        self.update_action.setVisible(False)
+        menu.addAction("About Desktop Park %s" % __version__,
+                       lambda: QDesktopServices.openUrl(QUrl("https://github.com/" + updates.REPO)))
         menu.addAction("Quit Desktop Park", self.quit)
         self.tray.setContextMenu(menu)
         self._tray_menu = menu
@@ -205,6 +320,8 @@ class App:
         bury the menu) or while a dialog is up."""
         if self.qapp.activePopupWidget() or self.qapp.activeModalWidget():
             return
+        if self.weather.isVisible():
+            winutil.pin_topmost(int(self.weather.winId()))
         if self.park.isVisible():
             winutil.pin_topmost(int(self.park.winId()))
         if self.board.isVisible():

@@ -2,10 +2,14 @@
 hide the park. Drag it by the title bar; "-" folds it down to just the bar."""
 
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QMenu,
                                QPushButton, QScrollArea, QToolButton,
                                QVBoxLayout, QWidget)
+
+import art as artmod
+import weather as weathermod
+from sprites import frame_image
 
 COLS = 5
 STYLE = """
@@ -25,6 +29,8 @@ QPushButton:hover { background: #3a4767; }
 QPushButton:checked { background: #5b7bd5; border-color: #7d98e6; }
 QPushButton#draw { background: #3f7d5a; border-color: #58a078; }
 QPushButton#draw:hover { background: #4b9a6d; }
+QFrame#update { background: #24352d; border: 1px solid #3f7d5a; border-radius: 6px; }
+QLabel#updatetext { color: #c8f0d4; font: 9pt 'Segoe UI'; }
 QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; border: none; }
 QScrollBar:vertical { background: transparent; width: 8px; }
 QScrollBar::handle:vertical { background: #3a4258; border-radius: 4px; min-height: 20px; }
@@ -42,6 +48,10 @@ class Board(QWidget):
     lock_toggled = Signal(bool)
     hide_toggled = Signal(bool)
     clear_park = Signal()
+    weather_changed = Signal(str)
+    weather_auto = Signal(bool)
+    update_open = Signal()
+    update_later = Signal()
     moved = Signal()
     closed = Signal()
 
@@ -80,6 +90,23 @@ class Board(QWidget):
         body = QVBoxLayout(self.body)
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(6)
+        # shown only when a newer version is on GitHub (visible even when folded)
+        self.update_bar = QFrame(objectName="update")
+        ub = QHBoxLayout(self.update_bar)
+        ub.setContentsMargins(8, 4, 4, 4)
+        ub.setSpacing(4)
+        self.update_text = QLabel("", objectName="updatetext")
+        get = QPushButton("Get it", objectName="draw")
+        get.setToolTip("Open the download page on GitHub")
+        get.clicked.connect(self.update_open.emit)
+        later = QPushButton("Later")
+        later.setToolTip("Don't remind me about this version")
+        later.clicked.connect(self.update_later.emit)
+        ub.addWidget(self.update_text, 1)
+        ub.addWidget(get)
+        ub.addWidget(later)
+        self.update_bar.hide()
+        lay.addWidget(self.update_bar)
         lay.addWidget(self.body)
 
         self.scroll = QScrollArea()
@@ -96,6 +123,30 @@ class Board(QWidget):
         draw = QPushButton("✏  Draw your own", objectName="draw")
         draw.clicked.connect(self.draw_new.emit)
         body.addWidget(draw)
+
+        body.addWidget(QLabel("WEATHER", objectName="section"))
+        wrow = QHBoxLayout()
+        wrow.setSpacing(4)
+        self.weather_btns = {}
+        for kind in weathermod.KINDS:
+            b = QPushButton(checkable=True)
+            b.setToolTip(weathermod.LABELS[kind])
+            if kind in artmod.WEATHER_ICONS:
+                b.setIcon(QIcon(_icon(artmod.WEATHER_ICONS[kind])))
+                b.setIconSize(QSize(18, 18))
+            else:
+                b.setText("Off")
+                b.setToolTip("No weather")
+            b.setFixedHeight(30)
+            b.clicked.connect(lambda _=False, k=kind: self._pick_weather(k))
+            wrow.addWidget(b)
+            self.weather_btns[kind] = b
+        self.auto_btn = QPushButton("Auto", checkable=True)
+        self.auto_btn.setFixedHeight(30)
+        self.auto_btn.setToolTip("Let the weather change by itself every few minutes")
+        self.auto_btn.toggled.connect(self.weather_auto.emit)
+        wrow.addWidget(self.auto_btn)
+        body.addLayout(wrow)
 
         row = QHBoxLayout()
         self.lock_btn = QPushButton("Lock", checkable=True)
@@ -186,6 +237,25 @@ class Board(QWidget):
         self.lock_btn.setText("Locked" if on else "Lock")
         self.lock_btn.blockSignals(False)
 
+    def _pick_weather(self, kind):
+        self.set_weather(kind)
+        self.weather_changed.emit(kind)
+
+    def set_weather(self, kind):
+        for k, b in self.weather_btns.items():
+            b.setChecked(k == kind)
+
+    def set_weather_auto(self, on):
+        self.auto_btn.blockSignals(True)
+        self.auto_btn.setChecked(on)
+        self.auto_btn.blockSignals(False)
+
+    def set_update(self, version):
+        if version:
+            self.update_text.setText("Version %s is out!" % version)
+        self.update_bar.setVisible(bool(version))
+        self.adjustSize()
+
     def set_hidden(self, on):
         self.hide_btn.blockSignals(True)
         self.hide_btn.setChecked(on)
@@ -229,3 +299,9 @@ class Board(QWidget):
         x = min(max(x, screen_rect.left()), screen_rect.right() - self.width())
         y = min(max(y, screen_rect.top()), screen_rect.bottom() - 40)
         self.move(QPoint(int(x), int(y)))
+
+
+def _icon(rows):
+    pic = {"palette": artmod.WEATHER_ICON_PALETTE, "frames": [rows]}
+    img = frame_image(pic, rows)
+    return QPixmap.fromImage(img.scaled(img.width() * 2, img.height() * 2))

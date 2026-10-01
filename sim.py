@@ -17,6 +17,8 @@ REACTIONS = ("love", "jump", "spin", "shake", "dance", "sleep", "dash")
 # How long each one lasts, in seconds.
 REACTION_TIME = {"love": 0.6, "jump": 0.8, "spin": 0.8, "shake": 0.7,
                  "dance": 1.6, "sleep": 4.0, "dash": 1.2}
+# How much the wind pushes things that move this way (flyers feel it most).
+WIND_PUSH = {"fly": 0.15, "swim": 0.07}   # gentle, or they all end up on one side
 # While doing these, the pet stops its normal wandering.
 HOLDS_STILL = ("spin", "shake", "dance", "sleep")
 
@@ -94,6 +96,7 @@ class World:
         # little pictures that float up and fade: [kind, x, y, life, vx, vy, max_life]
         self.particles = []
         self._last_reaction = {}
+        self.wind = 0.0         # px/s from the weather; pushes flyers, swimmers, particles
 
     @property
     def ground(self):
@@ -214,9 +217,11 @@ class World:
                 t.vx = t.vy = 0.0
             else:
                 mover(t, dt, rng)
+            if self.wind and t.behavior in WIND_PUSH:
+                t.x += self.wind * WIND_PUSH[t.behavior] * dt
             self.clamp(t)
         for p in self.particles:
-            p[1] += p[4] * dt
+            p[1] += (p[4] + self.wind * 0.5) * dt
             p[2] += p[5] * dt
             p[4] *= 0.92                      # sideways drift slows down
             p[3] -= dt

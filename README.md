@@ -14,14 +14,16 @@ your own, and lock or hide the park.
 - **26 decorations:** trees, flowers, a cottage, a campfire, a pond, crystals and more
 - **Draw your own** pets and decorations, with animation frames
 - **Any picture can walk, hop, swim, fly or stay still** - your choice
+- **Weather:** sun rays, rain, snow that piles up, or wind that blows leaves
+  (and your flying pets) around - or let it change by itself
 
 ## Download
 
 **[Download the latest Windows release](https://github.com/sirawitbm/destop-park/releases/latest)**
 
-- `DesktopPark-v0.1.0-Setup.exe` - the normal install. Adds Desktop Park to
+- `DesktopPark-vX.Y.Z-Setup.exe` - the normal install. Adds Desktop Park to
   the Start menu, no administrator access needed.
-- `DesktopPark-v0.1.0-windows-x64.zip` - portable. Extract the whole folder,
+- `DesktopPark-vX.Y.Z-windows-x64.zip` - portable. Extract the whole folder,
   then run `DesktopPark.exe`; it keeps your park inside that folder.
 
 Windows SmartScreen may warn about the app because releases are not digitally
@@ -41,10 +43,19 @@ run it from source (below).
 - **Resize:** scroll the mouse wheel over a thing.
 - **Options:** right-click a thing to change how it moves, its size, turn it
   around, bring it to the front, copy, edit or remove it.
+- **Weather:** the buttons under WEATHER on the board: Off, Sunny, Rain,
+  Snow, Windy, and **Auto** to let it change by itself every few minutes.
+  Also in the tray menu. Weather never catches the mouse.
 - **Lock:** clicks go through everything, even the pets. Good for gaming.
 - **Hide park / Show park:** on the board, or from the tray icon (the fish by
   the clock).
 - The board's "-" folds it down; "x" hides it into the tray icon.
+
+**Updates:** Desktop Park checks GitHub for a new version a few seconds after
+it starts and every 6 hours. If there is one, a green bar appears on the
+board and in the tray menu: **Get it** opens the download page, **Later**
+stays quiet about that version. It only reads the version number - nothing
+is downloaded or installed by itself.
 
 Games need to run in **borderless windowed** mode for the park to show on top
 of them. Exclusive fullscreen covers everything.
@@ -88,6 +99,9 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 | `desktop_park.py` | Starts everything, saving, the tray icon |
 | `park.py` | The see-through full-screen window, mouse, right-click menu |
 | `sim.py` | How things move and react (pure logic, unit tested) |
+| `weather.py` | Rain, snow, wind and sun (pure logic, unit tested) |
+| `weather_window.py` | Draws the weather in its own click-through window |
+| `updates.py` | Asks GitHub whether a newer version is out |
 | `board.py` | The floating control board |
 | `editor.py` | The pixel editor |
 | `art.py`, `art_pack.py` | The built-in pixel art, written as rows of letters |
@@ -97,7 +111,8 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 The park is a frameless, see-through, always-on-top window. Windows passes
 clicks on fully transparent pixels through to whatever is underneath, so only
 the painted pixels of a pet or plant catch the mouse. Lock mode adds
-`WS_EX_TRANSPARENT`, so every click goes through.
+`WS_EX_TRANSPARENT`, so every click goes through. The weather lives in a
+second window that always has it, so a raindrop can never catch a click.
 
 ## Credits
 
