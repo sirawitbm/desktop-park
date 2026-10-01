@@ -38,8 +38,7 @@ Your desktop gets its own sky. Pick the weather on the board, or press
 ![Sunny, Rain, Snow and Windy side by side](docs/weather.png)
 
 The weather never gets in your way: it lives in its own window that every
-click passes straight through, and it barely uses the CPU (well under 1%
-while it rains).
+click passes straight through
 
 ## Download
 
