@@ -6,8 +6,9 @@ Little pixel-art pets and plants that live on top of your Windows screen.
 
 The whole screen is the park, but it never gets in your way: clicks on empty
 space go straight through to your apps. Only the pets and decorations
-themselves can be grabbed. A small floating board lets you add things, draw
-your own, and lock or hide the park.
+themselves can be grabbed. A small floating board in a cozy pixel-game style
+lets you add things, draw your own, change the weather, and lock or hide the
+park - and folds down into a hotbar that fits inside your taskbar.
 
 - **18 animated pets:** cat, dog, bunny, frog, duck, chick, penguin, crab,
   turtle, snail, bee, butterfly, bird, fish, ghost, jellyfish, pufferfish, slime
@@ -16,6 +17,9 @@ your own, and lock or hide the park.
 - **Any picture can walk, hop, swim, fly or stay still** - your choice
 - **Weather:** sun rays, rain, snow that piles up, or wind that blows leaves
   (and your flying pets) around - or let it change by itself
+- **Taskbar hotbar:** fold the board into a slim bar with weather, hide and
+  lock buttons, and keep it in the Windows taskbar
+- **Two or more monitors:** choose which screen the park lives on
 
 ## Weather
 
@@ -53,7 +57,7 @@ run it from source (below).
 
 ## How to use it
 
-<img align="right" width="240" src="docs/board.png" alt="The control board: a grid of pets and decorations, a Draw your own button, and Lock, Hide park and Clear buttons">
+<img align="right" width="240" src="docs/board.png" alt="The control board in a pixel-game style: inventory-like slots of pets and decorations, a green Draw your own button, weather buttons, and Lock, Hide, Clear and Screen buttons">
 
 - **Add things:** click a picture on the board.
 - **Move:** drag anything in the park. Pets dropped in the air fall back down.
@@ -63,32 +67,36 @@ run it from source (below).
 - **Resize:** scroll the mouse wheel over a thing.
 - **Options:** right-click a thing to change how it moves, its size, turn it
   around, bring it to the front, copy, edit or remove it.
-- **Weather:** the buttons under WEATHER on the board: Off, Sunny, Rain,
-  Snow, Windy, and **Auto** to let it change by itself every few minutes.
-  Also in the tray menu. Weather never catches the mouse.
+- **Weather:** the buttons under WEATHER on the board: off (the grey cloud),
+  Sunny, Rain, Snow, Windy, and **Auto** to let it change by itself every few
+  minutes. Also in the tray menu and on the folded hotbar. Weather never
+  catches the mouse.
 - **Two monitors?** Press **Screen** on the board (or **Screen** in the tray
   menu) and pick where the park lives. Everything keeps its place, pets on
   the ground stay on the ground, and the choice is remembered. If that
   monitor is unplugged, the park moves to your main screen and comes back
   when you plug it in again.
 - **Lock:** clicks go through everything, even the pets. Good for gaming.
-- **Hide park / Show park:** on the board, or from the tray icon (the fish by
-  the clock).
-- **Fold the board** with its "-" button: it shrinks down into a slim bar of
-  quick controls (weather, hide, lock) that fits **inside the Windows
-  taskbar** - drag it there. Its bottom edge stays put, so opening it again
-  grows the board upward. "x" hides the board into the tray icon.
+- **Hide / Show:** hides the whole park (and its weather). Also on the folded
+  hotbar and in the tray menu (the fish icon by the clock).
+- **Fold the board** with the "-" button in its title bar. It becomes a slim
+  hotbar that fits **inside the Windows taskbar** - drag it there by the
+  fish. Its bottom edge stays put, so the arrow button opens the board
+  upward again. The "x" button hides the board into the tray icon.
+
+<br clear="right">
+
+![The folded hotbar: the fish, a weather button showing rain, an eye button to hide the park, a padlock button to lock it, and buttons to open or close the board](docs/hotbar.png)
 
 **Updates:** Desktop Park checks GitHub for a new version a few seconds after
 it starts and every 6 hours. If there is one, a green bar appears on the
-board and in the tray menu: **Get it** opens the download page, **Later**
-stays quiet about that version. It only reads the version number - nothing
+board (a small green **NEW!** button on the folded hotbar) and in the tray
+menu: **Get it** opens the download page, **Later** stays quiet about that
+version. It only reads the version number - nothing
 is downloaded or installed by itself.
 
 Games need to run in **borderless windowed** mode for the park to show on top
 of them. Exclusive fullscreen covers everything.
-
-<br clear="right">
 
 ## Draw your own
 
@@ -137,6 +145,7 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 | `sprites.py` | Turns the art into images |
 | `store.py` | Saves and loads the park safely (with a backup copy) |
 | `ui_style.py` | The pixel-game look: fonts, pixel frames, colours |
+| `assets/fonts/` | The two pixel fonts and their licenses |
 
 The park is a frameless, see-through, always-on-top window. Windows passes
 clicks on fully transparent pixels through to whatever is underneath, so only
