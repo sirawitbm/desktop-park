@@ -17,6 +17,26 @@ your own, and lock or hide the park.
 - **Weather:** sun rays, rain, snow that piles up, or wind that blows leaves
   (and your flying pets) around - or let it change by itself
 
+## Weather
+
+![The park cycling through sunny light rays, rain, snow piling up along the ground, and wind blowing leaves](docs/weather.gif)
+
+Your desktop gets its own sky. Pick the weather on the board, or press
+**Auto** and let it change by itself every few minutes.
+
+- **Sunny** - warm light rays from the corner of the screen and drifting sparkles
+- **Rain** - pixel raindrops, slanted by the breeze, that splash when they land
+- **Snow** - flakes drift down and **pile up along the bottom of your screen**,
+  then melt away when the snow stops
+- **Windy** - leaves and gusts blow across, and your flying and swimming pets
+  get pushed around
+
+![Sunny, Rain, Snow and Windy side by side](docs/weather.png)
+
+The weather never gets in your way: it lives in its own window that every
+click passes straight through, and it barely uses the CPU (well under 1%
+while it rains).
+
 ## Download
 
 **[Download the latest Windows release](https://github.com/sirawitbm/destop-park/releases/latest)**
@@ -102,6 +122,7 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 | `weather.py` | Rain, snow, wind and sun (pure logic, unit tested) |
 | `weather_window.py` | Draws the weather in its own click-through window |
 | `updates.py` | Asks GitHub whether a newer version is out |
+| `tools/weather_demo.py` | Renders the README's weather pictures off-screen |
 | `board.py` | The floating control board |
 | `editor.py` | The pixel editor |
 | `art.py`, `art_pack.py` | The built-in pixel art, written as rows of letters |
