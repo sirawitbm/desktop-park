@@ -3,7 +3,7 @@ hide the park. Drag it by the title bar; "-" folds it down to just the bar."""
 
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QMenu,
+from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QMenu,
                                QPushButton, QScrollArea, QToolButton,
                                QVBoxLayout, QWidget)
 
@@ -65,6 +65,9 @@ class Board(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
+        # the window always shrinks or grows to fit what is showing (folding,
+        # the update bar); a plain adjustSize() measured before the hide landed
+        outer.setSizeConstraint(QLayout.SetFixedSize)
         self.frame = QFrame(objectName="board")
         outer.addWidget(self.frame)
         self.frame.setStyleSheet(STYLE)
@@ -167,7 +170,7 @@ class Board(QWidget):
                       objectName="hint")
         body.addWidget(hint)
 
-        self.setFixedWidth(COLS * 50 + 34)
+        self.frame.setFixedWidth(COLS * 50 + 34)
         self.rebuild()
 
     # -- picture grid --------------------------------------------------------
@@ -254,7 +257,7 @@ class Board(QWidget):
         if version:
             self.update_text.setText("Version %s is out!" % version)
         self.update_bar.setVisible(bool(version))
-        self.adjustSize()
+        self.layout().activate()
 
     def set_hidden(self, on):
         self.hide_btn.blockSignals(True)
@@ -271,7 +274,7 @@ class Board(QWidget):
         self.body.setVisible(not on)
         self.fold_btn.setText("+" if on else "–")
         self.fold_btn.setToolTip("Open the board" if on else "Fold the board")
-        self.adjustSize()
+        self.layout().activate()
 
     def _close(self):
         self.hide()
