@@ -87,7 +87,7 @@ class App:
         by = b.get("y", area.top() + 80)
         # the board may sit on a different monitor than the park - keep it there
         home = qapp.screenAt(QPoint(int(bx) + 20, int(by) + 10)) or screen
-        self.board.place(bx, by, home.availableGeometry())
+        self.board.place(bx, by, home.geometry())     # may sit in the taskbar
 
         self._make_tray()
         self.set_locked(self.data["locked"])
@@ -230,7 +230,7 @@ class App:
                 y = new_area.top() + (self.board.y() - old_area.top())
             else:
                 x, y = new_area.right() - self.board.width() - 24, new_area.top() + 80
-            self.board.place(x, y, new_area)
+            self.board.place(x, y, screen.geometry())
         if remember:
             self.data["screen"] = self._screen_key(screen)
             self.save_soon()

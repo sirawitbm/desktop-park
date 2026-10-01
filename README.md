@@ -74,7 +74,10 @@ run it from source (below).
 - **Lock:** clicks go through everything, even the pets. Good for gaming.
 - **Hide park / Show park:** on the board, or from the tray icon (the fish by
   the clock).
-- The board's "-" folds it down to just its title bar; "x" hides it into the tray icon.
+- **Fold the board** with its "-" button: it shrinks down into a slim bar of
+  quick controls (weather, hide, lock) that fits **inside the Windows
+  taskbar** - drag it there. Its bottom edge stays put, so opening it again
+  grows the board upward. "x" hides the board into the tray icon.
 
 **Updates:** Desktop Park checks GitHub for a new version a few seconds after
 it starts and every 6 hours. If there is one, a green bar appears on the

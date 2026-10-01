@@ -364,6 +364,17 @@ PARTICLES = {
 WEATHER_ICON_PALETTE = {"y": "#ffcd4f", "Y": "#fff1a8", "w": "#f4f4f4",
                         "S": "#94b0c2", "c": "#41a6f6", "C": "#73eff7"}
 WEATHER_ICONS = {
+    "clear": [
+        ".........",
+        ".........",
+        "...SSS...",
+        "..SSSSS..",
+        ".SSSSSSSS",
+        "SSSSSSSSS",
+        ".SSSSSSS.",
+        ".........",
+        ".........",
+    ],
     "sun": [
         "....y....",
         ".y.....y.",
@@ -407,6 +418,32 @@ WEATHER_ICONS = {
         "wwwww..S.",
         "....w....",
         "...w.....",
+    ],
+}
+
+# Icons for the folded board's quick buttons (same palette as the weather ones).
+UI_ICONS = {
+    "eye": [
+        ".........",
+        "..wwwww..",
+        ".w.....w.",
+        "w..ccc..w",
+        "w..cCc..w",
+        "w..ccc..w",
+        ".w.....w.",
+        "..wwwww..",
+        ".........",
+    ],
+    "lock": [
+        "..SSSSS..",
+        ".S.....S.",
+        ".S.....S.",
+        "yyyyyyyyy",
+        "yyyyyyyyy",
+        "yyyyYyyyy",
+        "yyyyYyyyy",
+        "yyyyyyyyy",
+        ".........",
     ],
 }
 

@@ -2,7 +2,7 @@
 hide the park. Drag it by the title bar; "-" folds it down to just the bar."""
 
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QActionGroup, QGuiApplication, QIcon, QPixmap
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QMenu,
                                QPushButton, QScrollArea, QToolButton,
                                QVBoxLayout, QWidget)
@@ -12,6 +12,7 @@ import weather as weathermod
 from sprites import frame_image
 
 COLS = 5
+FULL_WIDTH = COLS * 50 + 34
 STYLE = """
 #board { background: #1d2230; border: 1px solid #3a4258; border-radius: 10px; }
 QLabel { color: #c9d1e6; font: 9pt 'Segoe UI'; }
@@ -23,6 +24,13 @@ QToolButton#thumb:hover { background: #33405c; border-color: #5b7bd5; }
 QToolButton#head { color: #c9d1e6; background: transparent; border: none;
                    font: bold 11pt 'Segoe UI'; padding: 0 6px; }
 QToolButton#head:hover { color: #ffffff; background: #33405c; border-radius: 4px; }
+QToolButton#quick { background: #262c3d; border: 1px solid #2f364a; border-radius: 6px;
+                    padding: 2px 4px; min-width: 22px; min-height: 22px; }
+QToolButton#quick:hover { background: #33405c; border-color: #5b7bd5; }
+QToolButton#quick:checked { background: #5b7bd5; border-color: #7d98e6; }
+QToolButton#quick::menu-indicator { image: none; width: 0; }
+QToolButton#newver { color: #ffffff; background: #3f7d5a; border: 1px solid #58a078;
+                     border-radius: 6px; padding: 2px 6px; font: bold 8pt 'Segoe UI'; }
 QPushButton { color: #e6ebf7; background: #2c3449; border: 1px solid #3a4258;
               border-radius: 6px; padding: 5px 8px; font: 9pt 'Segoe UI'; }
 QPushButton:hover { background: #3a4767; }
@@ -74,10 +82,44 @@ class Board(QWidget):
         lay = QVBoxLayout(self.frame)
         lay.setContentsMargins(10, 6, 10, 10)
         lay.setSpacing(6)
+        self._lay = lay
 
         head = QHBoxLayout()
-        title = QLabel("Desktop Park", objectName="title")
-        head.addWidget(title)
+        head.setSpacing(4)
+        self.logo = QLabel()
+        self.logo.setPixmap(library.thumbnail("fish", 20))
+        self.logo.setToolTip("Desktop Park - drag me anywhere, even into the taskbar")
+        self.title = QLabel("Desktop Park", objectName="title")
+        head.addWidget(self.logo)
+        head.addWidget(self.title)
+
+        # the folded bar's quick controls: weather, hide, lock (and "new version")
+        self.quick = QWidget()
+        q = QHBoxLayout(self.quick)
+        q.setContentsMargins(6, 0, 0, 0)
+        q.setSpacing(4)
+        self.quick_weather = QToolButton(objectName="quick")
+        self.quick_weather.setIconSize(QSize(18, 18))
+        self.quick_weather.setPopupMode(QToolButton.InstantPopup)
+        self.quick_weather.setToolTip("Weather")
+        self.quick_weather.setMenu(self._weather_menu())
+        self.quick_hide = QToolButton(objectName="quick", checkable=True)
+        self.quick_hide.setIcon(QIcon(_icon(artmod.UI_ICONS["eye"])))
+        self.quick_hide.setIconSize(QSize(18, 18))
+        self.quick_hide.setToolTip("Hide the park")
+        self.quick_hide.toggled.connect(self._hide)
+        self.quick_lock = QToolButton(objectName="quick", checkable=True)
+        self.quick_lock.setIcon(QIcon(_icon(artmod.UI_ICONS["lock"])))
+        self.quick_lock.setIconSize(QSize(18, 18))
+        self.quick_lock.setToolTip("Lock: clicks go through everything in the park")
+        self.quick_lock.toggled.connect(self._lock)
+        self.quick_update = QToolButton(text="New!", objectName="newver")
+        self.quick_update.clicked.connect(self.update_open.emit)
+        self.quick_update.hide()
+        for w in (self.quick_weather, self.quick_hide, self.quick_lock, self.quick_update):
+            q.addWidget(w)
+        self.quick.hide()
+        head.addWidget(self.quick)
         head.addStretch(1)
         self.fold_btn = QToolButton(text="–", objectName="head")
         self.fold_btn.setToolTip("Fold the board")
@@ -174,7 +216,7 @@ class Board(QWidget):
                       objectName="hint")
         body.addWidget(hint)
 
-        self.frame.setFixedWidth(COLS * 50 + 34)
+        self.frame.setFixedWidth(FULL_WIDTH)
         self.rebuild()
 
     # -- picture grid --------------------------------------------------------
@@ -230,19 +272,40 @@ class Board(QWidget):
         menu.exec(pos)
 
     # -- buttons -------------------------------------------------------------
+    # Lock and hide each have two buttons (board + folded bar) kept in step.
     def _lock(self, on):
-        self.lock_btn.setText("Locked" if on else "Lock")
+        self.set_locked(on)
         self.lock_toggled.emit(on)
 
     def _hide(self, on):
-        self.hide_btn.setText("Show park" if on else "Hide park")
+        self.set_hidden(on)
         self.hide_toggled.emit(on)
 
     def set_locked(self, on):
-        self.lock_btn.blockSignals(True)
-        self.lock_btn.setChecked(on)
+        for b in (self.lock_btn, self.quick_lock):
+            b.blockSignals(True)
+            b.setChecked(on)
+            b.blockSignals(False)
         self.lock_btn.setText("Locked" if on else "Lock")
-        self.lock_btn.blockSignals(False)
+        self.quick_lock.setToolTip("Unlock the park" if on else
+                                   "Lock: clicks go through everything in the park")
+
+    def _weather_menu(self):
+        menu = QMenu(self)
+        menu.setStyleSheet(STYLE)
+        group = QActionGroup(menu)
+        self._weather_actions = {}
+        for kind in weathermod.KINDS:
+            a = menu.addAction(QIcon(_icon(artmod.WEATHER_ICONS[kind])), weathermod.LABELS[kind])
+            a.setCheckable(True)
+            group.addAction(a)
+            a.triggered.connect(lambda _=False, k=kind: self._pick_weather(k))
+            self._weather_actions[kind] = a
+        menu.addSeparator()
+        self._auto_action = menu.addAction("Auto (changes by itself)")
+        self._auto_action.setCheckable(True)
+        self._auto_action.triggered.connect(lambda on: self.auto_btn.setChecked(on))
+        return menu
 
     def _pick_weather(self, kind):
         self.set_weather(kind)
@@ -251,17 +314,29 @@ class Board(QWidget):
     def set_weather(self, kind):
         for k, b in self.weather_btns.items():
             b.setChecked(k == kind)
+        for k, a in self._weather_actions.items():
+            a.setChecked(k == kind)
+        self.quick_weather.setIcon(QIcon(_icon(artmod.WEATHER_ICONS.get(kind, artmod.WEATHER_ICONS["clear"]))))
+        self.quick_weather.setToolTip("Weather: %s" % weathermod.LABELS.get(kind, kind))
 
     def set_weather_auto(self, on):
-        self.auto_btn.blockSignals(True)
-        self.auto_btn.setChecked(on)
-        self.auto_btn.blockSignals(False)
+        for b in (self.auto_btn, self._auto_action):
+            b.blockSignals(True)
+            b.setChecked(on)
+            b.blockSignals(False)
 
     def set_update(self, version):
+        self._update_version = version
         if version:
             self.update_text.setText("Version %s is out!" % version)
-        self.update_bar.setVisible(bool(version))
-        self.layout().activate()
+            self.quick_update.setToolTip("Version %s is out - click to download" % version)
+        self._keep_bottom(self._show_update_parts)
+
+    def _show_update_parts(self):
+        version = getattr(self, "_update_version", None)
+        # big bar on the open board, a small "New!" button on the folded bar
+        self.update_bar.setVisible(bool(version) and not self.collapsed)
+        self.quick_update.setVisible(bool(version) and self.collapsed)
 
     def set_screen_menu(self, menu, show):
         """The app hands over the menu listing the monitors."""
@@ -270,21 +345,48 @@ class Board(QWidget):
         self.screen_btn.setVisible(show)
 
     def set_hidden(self, on):
-        self.hide_btn.blockSignals(True)
-        self.hide_btn.setChecked(on)
+        for b in (self.hide_btn, self.quick_hide):
+            b.blockSignals(True)
+            b.setChecked(on)
+            b.blockSignals(False)
         self.hide_btn.setText("Show park" if on else "Hide park")
-        self.hide_btn.blockSignals(False)
+        self.quick_hide.setToolTip("Show the park" if on else "Hide the park")
 
     def toggle_collapsed(self):
         self.set_collapsed(not self.collapsed)
         self.moved.emit()
 
     def set_collapsed(self, on):
-        self.collapsed = on
-        self.body.setVisible(not on)
-        self.fold_btn.setText("+" if on else "–")
-        self.fold_btn.setToolTip("Open the board" if on else "Fold the board")
+        """Folded, the board is a slim bar of quick controls that fits in the
+        taskbar. Its bottom edge stays put, so opening grows it upward."""
+        def change():
+            self.collapsed = on
+            self.body.setVisible(not on)
+            self.title.setVisible(not on)
+            self.quick.setVisible(on)
+            if on:
+                self._lay.setContentsMargins(6, 4, 4, 4)
+                self.frame.setMinimumWidth(0)
+                self.frame.setMaximumWidth(16777215)
+            else:
+                self._lay.setContentsMargins(10, 6, 10, 10)
+                self.frame.setFixedWidth(FULL_WIDTH)
+            self.fold_btn.setText("\u25b4" if on else "\u2013")
+            self.fold_btn.setToolTip("Open the board (it grows upward)" if on else "Fold the board")
+            self._show_update_parts()
+        self._keep_bottom(change)
+
+    def _keep_bottom(self, change):
+        """Make a change that resizes the board, keeping its bottom-left corner
+        where it is, and the whole board on its screen."""
+        shown = self.isVisible()
+        left, bottom = self.x(), self.y() + self.height()
+        change()
         self.layout().activate()
+        if shown:
+            screen = (QGuiApplication.screenAt(QPoint(left + 10, bottom - 5))
+                      or self.screen())
+            self.place(left, bottom - self.height(), screen.geometry())
 
     def _close(self):
         self.hide()
@@ -309,8 +411,10 @@ class Board(QWidget):
             self.toggle_collapsed()
 
     def place(self, x, y, screen_rect):
-        x = min(max(x, screen_rect.left()), screen_rect.right() - self.width())
-        y = min(max(y, screen_rect.top()), screen_rect.bottom() - 40)
+        """Move to (x, y), but keep the whole board on that screen. The screen
+        rect includes the taskbar, so the folded bar may live inside it."""
+        x = min(max(x, screen_rect.left()), screen_rect.right() + 1 - self.width())
+        y = min(max(y, screen_rect.top()), screen_rect.bottom() + 1 - self.height())
         self.move(QPoint(int(x), int(y)))
 
 
