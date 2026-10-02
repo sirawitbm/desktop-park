@@ -1,5 +1,7 @@
 """Render the README screenshots off-screen (nothing appears on your screen):
 docs/park.png, docs/board.png, docs/looks.png, docs/hotbar.png, docs/editor.png.
+Add --review for extra design-review pictures (hover preview, save warning,
+light and busy backgrounds) - write those to the git-ignored review/ folder.
 The weather and night pictures come from weather_demo.py / night_demo.py.
 
     python tools/screenshots.py [out_dir]       # default: docs
@@ -57,7 +59,7 @@ def off_screen(self, screen):
         self.weather.resize(W, H)
 
 
-def main(out_dir="docs"):
+def main(out_dir="docs", review=False):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     parkmod.ParkWindow.fit_screen = off_screen
@@ -132,11 +134,12 @@ def main(out_dir="docs"):
         from board import PictureButton
         button = next(button for button in app.board.findChildren(PictureButton)
                   if button.picture["id"] == "snail")
-        button.preview().grab().save(str(out / "hover.png"))
-        app.board.set_save_error("Disk full")
-        settle(qapp)
-        app.board.grab().save(str(out / "save-warning.png"))
-        app.board.set_save_error(None)
+        if review:                              # extra pictures for design reviews only
+            button.preview().grab().save(str(out / "hover.png"))
+            app.board.set_save_error("Disk full")
+            settle(qapp)
+            app.board.grab().save(str(out / "save-warning.png"))
+            app.board.set_save_error(None)
         # the folded bar in both looks, drawn 2x on a taskbar-coloured strip
         bars = []
         for theme in ui_style.THEMES:
@@ -174,8 +177,9 @@ def main(out_dir="docs"):
 
     def run():
         hero()
-        hero("light")
-        hero("busy")
+        if review:
+            hero("light")
+            hero("busy")
         boards()
         editor()
 
@@ -184,4 +188,5 @@ def main(out_dir="docs"):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "docs")
+    args = [a for a in sys.argv[1:] if a != "--review"]
+    main(args[0] if args else "docs", review="--review" in sys.argv)
