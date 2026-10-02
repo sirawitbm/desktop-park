@@ -13,14 +13,16 @@ a slim bar that fits inside your taskbar.
 - **20 animated pets:** cat, dog, bunny, frog, duck, chick, penguin, crab,
   turtle, snail, bee, butterfly, bird, fish, ghost, jellyfish, pufferfish,
   slime, and for Halloween a bat and a witch cat
-- **30 decorations:** trees, flowers, a cottage, a campfire, a pond, crystals,
+- **31 decorations:** trees, flowers, a cottage, a campfire, a pond, crystals, a clock,
   and for Halloween a jack-o'-lantern, a spooky tree, a gravestone and a cauldron
 - **Draw your own** pets and decorations, with animation frames
 - **Any picture can walk, hop, swim, fly or stay still** - your choice
 - **Weather:** sun rays, rain, snow that piles up, or wind that blows leaves
   (and your flying pets) around - or let it change by itself
-- **Day & night:** after dark the lamps, campfire and lanterns glow,
-  fireflies come out and the pets get sleepy
+- **Day & night:** a pixel sun and moon cross the top of your screen with the
+  real time; at sunset the park turns warm, then moonlit; lamps and fires glow,
+  fireflies come out, and the pets gather by the fire and doze off
+- **Clock:** a little pixel clock decoration that shows the real time
 - **Taskbar bar:** fold the board into a slim bar with weather, hide and
   lock buttons, and keep it in the Windows taskbar
 - **Two looks:** clean **Modern**, or **Pixel** to match the art
@@ -47,19 +49,30 @@ click passes straight through
 
 ## Day & night
 
-![The park at night: lamp posts, a campfire, jack-o'-lanterns and a cauldron glowing, fireflies drifting, bats flying and sleepy pets with Zzz](docs/night.gif)
+![A sped-up evening: the sun sinks into the right corner, the park turns warm then moonlit blue, the moon rises on the left, stars and fireflies come out, lamps and the campfire glow, the pixel clock ticks from 17:50 to 20:30, and the pets gather by the fire and fall asleep](docs/night.gif)
 
-The park follows your computer's clock. From about 6 pm the light fades into
-night until early morning:
+The park follows your computer's clock (the picture above is a sped-up
+evening):
 
+- **The sun and moon move.** A pixel sun rises in the left corner of your
+  screen in the morning, arcs across the top and sets in the right corner in
+  the evening; then the moon does the same overnight, with a few twinkling
+  stars. On **Sunny** days the light rays shine from the sun.
+- **The park changes colour.** At sunset the pets and plants take on a warm
+  glow, then cool moonlight. Things near a lamp or fire stay bright.
 - **Lights glow** - lamp posts, the campfire, the cottage window, crystals,
-  and the Halloween jack-o'-lanterns and cauldron. Fire and lanterns flicker.
+  the clock, and the Halloween jack-o'-lanterns and cauldron. Fire flickers.
 - **Fireflies** drift near the ground on dry nights.
-- **Pets get sleepy** and doze off for a while (Zzz). Click one to wake it.
+- **Pets get cosy.** Walking pets wander over to the nearest campfire or lamp
+  and doze off beside it (Zzz) - click one to wake it. Bees, butterflies and
+  bats flutter around the lights like moths.
+- **The clock** decoration (on the board with the other decorations) shows the
+  real time, with a sun or moon next to it.
 
-It never darkens your screen - only the park changes. To see it any time,
-right-click the fish in the tray and pick **Time of day > Always night**
-(or **Always day**, or **Follow my clock**, the default).
+It never darkens your screen - only the park itself changes. To see night any
+time, right-click the fish in the tray and pick **Time of day > Always night**
+(or **Always day**, or **Follow my clock**, the default). **Show sun & moon** in
+the same menu hides the sky if you'd rather not have it.
 
 **Halloween:** a bat, a witch cat, jack-o'-lanterns, a spooky tree, a
 gravestone and a bubbling cauldron are on the board all year. In October

@@ -5,11 +5,13 @@ passing under your cursor must never catch a click meant for your app.
 """
 
 import math
+import random
 
 from PySide6.QtCore import QPointF, Qt, QTimer
 from PySide6.QtGui import QColor, QImage, QPainter, QPixmap, QPolygonF
 from PySide6.QtWidgets import QWidget
 
+import daycycle
 import winutil
 from weather import SNOW_CELL, Weather
 
@@ -25,6 +27,58 @@ LEAVES = (QColor("#38b764"), QColor("#a7f070"), QColor("#ef7d3a"), QColor("#ffcd
 MOTE = QColor(255, 240, 170)
 RAY = (255, 208, 96)
 FIREFLY = QColor("#e4ff5c")
+MOON_LIGHT = QColor("#f4efcf")
+MOON_SHADE = QColor("#c9c09a")
+STAR = QColor("#e8eeff")
+STARS = 30
+
+
+def _moon_image(n=14, scale=4):
+    """A pixel crescent: a full circle with a smaller circle bitten out."""
+    img = QImage(n * scale, n * scale, QImage.Format_ARGB32_Premultiplied)
+    img.fill(Qt.transparent)
+    c = (n - 1) / 2
+    for y in range(n):
+        for x in range(n):
+            if math.hypot(x - c, y - c) > n / 2 - 0.2:
+                continue
+            bite = math.hypot(x - c - 3.6, y - c + 1.6)
+            if bite < n / 2 - 1.6:
+                continue
+            col = MOON_SHADE if bite < n / 2 - 0.4 or x < 2 else MOON_LIGHT
+            for dy in range(scale):
+                for dx in range(scale):
+                    img.setPixelColor(x * scale + dx, y * scale + dy, col)
+    return img
+
+
+SUN_CORE = QColor("#ffe27a")
+SUN_EDGE = QColor("#ffb83d")
+BODY_SCALE = 4                    # the sun and moon are drawn 4x
+
+
+def _sun_image(n=16, scale=BODY_SCALE):
+    """A pixel sun: a round middle with eight short rays."""
+    img = QImage(n * scale, n * scale, QImage.Format_ARGB32_Premultiplied)
+    img.fill(Qt.transparent)
+    c = (n - 1) / 2
+    for y in range(n):
+        for x in range(n):
+            d = math.hypot(x - c, y - c)
+            col = None
+            if d < 4.2:
+                col = SUN_CORE if d < 3.0 else SUN_EDGE
+            elif 5.4 < d < 7.6:
+                ang = math.degrees(math.atan2(y - c, x - c)) % 45
+                if ang < 9 or ang > 36:
+                    col = SUN_EDGE
+            if col is not None:
+                for dy in range(scale):
+                    for dx in range(scale):
+                        img.setPixelColor(x * scale + dx, y * scale + dy, col)
+    return img
+
+
 GLOW_STEPS = (0.55, 0.36, 0.22, 0.10)   # alpha of each ring, from the middle out
 
 
@@ -41,6 +95,12 @@ class WeatherWindow(QWidget):
         self.on_step = None            # called each tick (the app passes the wind to the pets)
         self._was_busy = False
         self._glow_cache = {}
+        self._moon = None
+        self._sun = None
+        self._sky_ticks = 0
+        rng = random.Random(7)                  # the same sky every night
+        self._stars = [(rng.random(), rng.random() * 0.36, rng.random(), rng.random() < 0.2)
+                       for _ in range(STARS)]
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
         self.timer.start(TICK_MS)
@@ -68,6 +128,11 @@ class WeatherWindow(QWidget):
             self.on_step(self.weather)
         if busy or self._was_busy:
             self.update()
+        elif self.weather.sky:
+            self._sky_ticks += 1
+            if self._sky_ticks >= 40:          # the sun creeps along: redraw every 2 s
+                self._sky_ticks = 0
+                self.update()
         self._was_busy = busy
 
     # -- drawing ---------------------------------------------------------------
@@ -77,8 +142,13 @@ class WeatherWindow(QWidget):
         p.fillRect(event.rect(), Qt.transparent)
         p.setCompositionMode(QPainter.CompositionMode_SourceOver)
         w = self.weather
+        clear_sky = w.kind not in ("rain", "snow")     # clouds hide the sky
+        if w.night > 0.02 and clear_sky:
+            self._draw_stars(p, w)
         if w.sun > 0.01:
             self._rays(p, w)
+        if w.sky and clear_sky:
+            self._body(p, w)
         if w.night > 0.02:
             self._glows(p, w)
         for q in w.particles:
@@ -142,6 +212,53 @@ class WeatherWindow(QWidget):
             self._glow_cache[key] = pm
         return pm
 
+    def _draw_stars(self, p, w):
+        """A few faint twinkling stars near the top of the screen."""
+        width, height = self.width(), self.height()
+        for fx, fy, phase, big in self._stars:
+            a = w.night * (0.35 + 0.3 * math.sin(w.t * (0.8 + phase) + phase * 30))
+            if a <= 0.02:
+                continue
+            c = QColor(STAR)
+            c.setAlphaF(min(1.0, a))
+            x, y = int(fx * width), int(fy * height)
+            p.fillRect(x, y, PX, PX, c)
+            if big:                              # a little twinkle cross
+                c.setAlphaF(min(1.0, a * 0.5))
+                p.fillRect(x - PX, y, PX, PX, c)
+                p.fillRect(x + PX, y, PX, PX, c)
+                p.fillRect(x, y - PX, PX, PX, c)
+                p.fillRect(x, y + PX, PX, PX, c)
+
+    def body_pos(self, w):
+        """Centre of the sun or moon on its arc across the top of the screen."""
+        body, progress = w.sky
+        pm = self._body_pixmap(body)
+        x, y = daycycle.arc(progress, self.width(), self.height(), pm.width())
+        return x + pm.width() / 2, y + pm.height() / 2
+
+    def _body_pixmap(self, body):
+        if self._moon is None:
+            self._moon = QPixmap.fromImage(_moon_image())
+            self._sun = QPixmap.fromImage(_sun_image())
+        return self._sun if body == "sun" else self._moon
+
+    def _body(self, p, w):
+        """The sun by day, the moon by night, following the clock."""
+        body = w.sky[0]
+        strength = (1.0 - w.night) if body == "sun" else w.night
+        if strength <= 0.02:
+            return
+        pm = self._body_pixmap(body)
+        cx, cy = self.body_pos(w)
+        radius = int(pm.width() * 1.25)
+        glow = self._glow_pixmap(radius, "#ffe9a8" if body == "sun" else "#cfdcff")
+        p.setOpacity(0.35 * strength)
+        p.drawPixmap(int(cx - radius), int(cy - radius), glow)
+        p.setOpacity(strength)
+        p.drawPixmap(int(cx - pm.width() / 2), int(cy - pm.height() / 2), pm)
+        p.setOpacity(1.0)
+
     def _glows(self, p, w):
         """Lamps, fires and lanterns light up softly as night falls."""
         for x, y, radius, colour, flickers in w.glows:
@@ -172,12 +289,18 @@ class WeatherWindow(QWidget):
             p.fillRect(x, y + u, u, u * 2, c)
 
     def _rays(self, p, w):
-        """A few soft beams fanning out from beyond the top-left corner."""
+        """A few soft beams fanning out from the sun (or from beyond the
+        top-left corner when the sun is hidden)."""
         width, height = self.width(), self.height()
-        ox, oy = -width * 0.08, -height * 0.25
+        if w.sky and w.sky[0] == "sun":
+            ox, oy = self.body_pos(w)
+        else:
+            ox, oy = -width * 0.08, -height * 0.25
         reach = math.hypot(width, height) * 1.2
-        for i, (angle, spread) in enumerate(((0.35, 0.05), (0.52, 0.035), (0.68, 0.06),
-                                             (0.86, 0.03), (1.02, 0.045))):
+        base = math.atan2(height * 0.9 - oy, width / 2 - ox)     # aim at the park
+        for i, (angle, spread) in enumerate(((-0.34, 0.05), (-0.17, 0.035), (0.0, 0.06),
+                                             (0.17, 0.03), (0.34, 0.045))):
+            angle += base
             pulse = 0.65 + 0.35 * math.sin(w.t * 0.4 + i * 1.7)
             c = QColor(*RAY)
             c.setAlphaF(0.11 * pulse * w.sun)

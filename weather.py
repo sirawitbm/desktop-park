@@ -38,6 +38,7 @@ class Weather:
         self.t = 0.0
         self.night = 0.0             # 0 day .. 1 night (daycycle.py): fireflies, glows
         self.glows = []              # [(x, y, radius, colour, flickers)] lights in the park
+        self.sky = None              # ("sun" or "moon", 0..1 across the sky), or None to hide
         self.auto = False
         self.auto_timer = 0.0
         self._spawn_debt = {}

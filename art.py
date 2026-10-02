@@ -536,3 +536,59 @@ BUILTIN += PACK + HALLOWEEN
 for _a in BUILTIN:
     if _a["id"] in GLOWS:
         _a["glow"] = GLOWS[_a["id"]]
+
+
+# -- the clock decoration: shows the real time ---------------------------------
+DIGITS = {
+    "0": ["###", "#.#", "#.#", "#.#", "###"], "1": [".#.", "##.", ".#.", ".#.", "###"],
+    "2": ["###", "..#", "###", "#..", "###"], "3": ["###", "..#", ".##", "..#", "###"],
+    "4": ["#.#", "#.#", "###", "..#", "..#"], "5": ["###", "#..", "###", "..#", "###"],
+    "6": ["###", "#..", "###", "#.#", "###"], "7": ["###", "..#", ".#.", ".#.", ".#."],
+    "8": ["###", "#.#", "###", "#.#", "###"], "9": ["###", "#.#", "###", "..#", "###"],
+    ":": [".", "#", ".", "#", "."],
+}
+CLOCK_ICONS = {
+    "sun": [".y.y.", "..y..", "yyyyy", "..y..", ".y.y."],
+    "moon": [".ww..", "ww...", "ww...", "ww...", ".ww.."],
+}
+CLOCK_PALETTE = {"k": "#1a1c2c", "K": "#566c86", "s": "#94b0c2", "u": "#1f2a52",
+                 "y": "#ffcd4f", "w": "#e8eeff"}
+
+
+def clock_rows(text="12:00", body="sun"):
+    """A little pixel digital clock reading `text` (HH:MM), with a sun or
+    moon icon. 29 x 12 art pixels."""
+    w, h = 29, 12
+    g = [["."] * w for _ in range(h)]
+    for y in range(11):
+        for x in range(w):
+            if y in (0, 10) or x in (0, w - 1):
+                g[y][x] = "k"
+            elif y == 1:
+                g[y][x] = "s"                      # light catching the top edge
+            elif y == 9 or x in (1, w - 2):
+                g[y][x] = "K"
+            else:
+                g[y][x] = "u"
+    for x in (4, 5, 23, 24):                       # little feet
+        g[11][x] = "k"
+
+    def stamp(rows, x0, colour):
+        for dy, row in enumerate(rows):
+            for dx, ch in enumerate(row):
+                if ch != ".":
+                    g[3 + dy][x0 + dx] = colour if ch == "#" else ch
+
+    stamp(CLOCK_ICONS.get(body, CLOCK_ICONS["sun"]), 3, "y")
+    x = 9
+    for ch in text[:5]:
+        glyph = DIGITS.get(ch, DIGITS["0"])
+        stamp(glyph, x, "y")
+        x += len(glyph[0]) + 1
+    return ["".join(r) for r in g]
+
+
+CLOCK = {"id": "clock", "name": "Clock", "kind": "deco", "behavior": "stay",
+         "palette": CLOCK_PALETTE, "frames": [clock_rows()], "dynamic": "clock",
+         "glow": ("#ffcd4f", 7, (0.55, 0.45), False)}
+BUILTIN.append(CLOCK)

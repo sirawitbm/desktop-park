@@ -117,5 +117,102 @@ class HalloweenArtTests(unittest.TestCase):
                 self.assertTrue(colour.startswith("#") and radius > 0, a["id"])
 
 
+class SkyTests(unittest.TestCase):
+    def test_sun_by_day_moon_by_night(self):
+        self.assertEqual(daycycle.sky(at(6))[0], "sun")
+        self.assertEqual(daycycle.sky(at(12))[0], "sun")
+        self.assertEqual(daycycle.sky(at(21))[0], "moon")
+        self.assertEqual(daycycle.sky(at(3))[0], "moon")
+        # it travels left to right
+        self.assertLess(daycycle.sky(at(8))[1], daycycle.sky(at(16))[1])
+        self.assertLess(daycycle.sky(at(20))[1], daycycle.sky(at(4))[1])
+
+    def test_arc_stays_in_the_top_of_the_screen(self):
+        prev_x = -1
+        for i in range(11):
+            x, y = daycycle.arc(i / 10, 1920, 1040, 64)
+            self.assertGreater(x, prev_x)
+            prev_x = x
+            self.assertTrue(0 <= y <= 1040 * 0.2)
+            self.assertTrue(0 <= x <= 1920 - 64)
+        noon = daycycle.arc(0.5, 1920, 1040, 64)[1]
+        self.assertLess(noon, daycycle.arc(0.0, 1920, 1040, 64)[1])     # highest at midday
+
+    def test_sky_setting_is_saved(self):
+        self.assertTrue(store.clean({})["show_sky"])
+        self.assertFalse(store.clean({"show_sky": False})["show_sky"])
+
+
+class TintTests(unittest.TestCase):
+    def test_day_is_untouched(self):
+        self.assertEqual(daycycle.tint(0.0)[3], 0.0)
+
+    def test_sunset_is_warm_and_night_is_blue(self):
+        r, g, b, a = daycycle.tint(0.3)
+        self.assertGreater(r, b)
+        r, g, b, a = daycycle.tint(1.0)
+        self.assertGreater(b, r)
+        self.assertGreater(a, 0.5)
+
+    def test_light_keeps_things_bright(self):
+        self.assertLess(daycycle.tint(1.0, light=1.0)[3], daycycle.tint(1.0, light=0.0)[3] / 4)
+
+
+class ClockTests(unittest.TestCase):
+    def test_reads_the_time(self):
+        a, b = art.clock_rows("09:05", "sun"), art.clock_rows("21:47", "moon")
+        self.assertNotEqual(a, b)
+        self.assertEqual(len({len(r) for r in a + b}), 1)
+        self.assertEqual(len(a), len(b))
+        self.assertEqual(daycycle.clock_text(at(7, 3)), "07:03")
+
+    def test_clock_is_a_glowing_decoration(self):
+        clock = [a for a in art.BUILTIN if a["id"] == "clock"][0]
+        self.assertEqual(clock["kind"], "deco")
+        self.assertIn("glow", clock)
+
+    def test_library_updates_the_clock(self):
+        import sprites
+        lib = sprites.Library([])
+        lib.set_clock("23:59", "moon")
+        self.assertEqual(lib.get("clock")["frames"][0], art.clock_rows("23:59", "moon"))
+
+
+class LightTests(unittest.TestCase):
+    def test_walkers_head_for_the_fire_at_night(self):
+        w = World(2000, 500)
+        w.night = 1.0
+        w.lights = [(1500, 470, 60)]
+        cat = Thing("cat", "x", 10, 8, scale=3, behavior="walk", x=200, y=500 - 24, is_pet=True)
+        w.things.append(cat)
+        rng = random.Random(5)
+        for _ in range(int(90 / 0.05)):
+            w.step(0.05, rng)
+            if cat.reaction == "sleep":
+                cat.reaction = None           # keep it awake for this test
+        self.assertGreater(cat.x, 1000)       # it walked most of the way over
+
+    def test_flyers_circle_the_lights(self):
+        w = World(2000, 800)
+        w.night = 1.0
+        w.lights = [(1000, 600, 80)]
+        bee = Thing("bee", "x", 10, 8, scale=3, behavior="fly", x=100, y=100, is_pet=True)
+        w.things.append(bee)
+        rng = random.Random(6)
+        near = 0
+        for _ in range(int(60 / 0.05)):
+            w.step(0.05, rng)
+            bee.reaction = None
+            if abs(bee.x - 1000) < 200 and abs(bee.y - 600) < 200:
+                near += 1
+        self.assertGreater(near, 100)
+
+    def test_light_level(self):
+        w = World(1000, 500)
+        w.lights = [(500, 400, 50)]
+        self.assertGreater(w.light_at(500, 400), 0.9)
+        self.assertEqual(w.light_at(100, 100), 0.0)
+
+
 if __name__ == "__main__":
     unittest.main()

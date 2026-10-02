@@ -35,7 +35,7 @@ def empty():
     return {"version": 1, "custom_art": [], "objects": [], "board": {},
             "locked": False, "hidden": False, "seeded": False,
             "weather": "clear", "weather_auto": False, "skip_update": "", "screen": "", "theme": "modern",
-            "time_mode": "clock"}
+            "time_mode": "clock", "show_sky": True}
 
 
 def load(path=None):
@@ -123,4 +123,5 @@ def clean(raw):
         data["skip_update"] = raw["skip_update"][:20]
     for key in ("locked", "hidden", "seeded", "weather_auto"):
         data[key] = raw.get(key) is True
+    data["show_sky"] = raw.get("show_sky") is not False          # on unless turned off
     return data

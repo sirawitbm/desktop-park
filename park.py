@@ -10,6 +10,7 @@ from PySide6.QtGui import QActionGroup, QPainter, QPixmap, QRegion
 from PySide6.QtWidgets import QMenu, QWidget
 
 import art as artmod
+import daycycle
 import winutil
 from sprites import frame_image
 from sim import MAX_SCALE, MIN_SCALE, Thing, World, thing_at
@@ -41,6 +42,8 @@ class ParkWindow(QWidget):
         self.timer.timeout.connect(self._tick)
         self.timer.start(TICK_MS)
         self._particle_pm = {}
+        self._shade_key = None          # time-of-day tint last painted
+        self._clock_stamp = None        # what the clock decorations last showed
 
     # -- setup ---------------------------------------------------------------
     def fit_screen(self, screen):
@@ -172,6 +175,20 @@ class ParkWindow(QWidget):
         frames = {t.uid: self._frame(t) for t in self.world.things}
         parts_before = [self._particle_rect(q) for q in self.world.particles]
         self.world.step(TICK_MS / 1000.0)
+        # the tint changed (dusk, dawn, a lamp added or moved): repaint everything
+        key = (daycycle.bucket(self.world.night, 0)[0],
+               tuple((round(x / 16), round(y / 16)) for x, y, _ in self.world.lights))
+        if key != self._shade_key:
+            self._shade_key = key
+            self.update()
+        # clock decorations show the real time
+        stamp = (daycycle.clock_text(), "moon" if self.world.night >= 0.5 else "sun")
+        if stamp != self._clock_stamp:
+            self._clock_stamp = stamp
+            self.library.set_clock(*stamp)
+            for t in self.world.things:
+                if t.art_id == "clock":
+                    self.update(self._rect(t))
         dirty = QRegion()
         for r in parts_before:
             dirty += r
@@ -197,7 +214,11 @@ class ParkWindow(QWidget):
             r = self._rect(t)
             if not r.intersects(clip):
                 continue
-            pm = self.library.pixmap(t.art_id, self._frame(t), t.scale, t.flip)
+            shade = (0.0, 0.0)
+            if self.world.night > 0.02:
+                light = self.world.light_at(r.center().x(), r.center().y())
+                shade = daycycle.bucket(self.world.night, light)
+            pm = self.library.pixmap(t.art_id, self._frame(t), t.scale, t.flip, shade)
             if pm is not None:
                 p.drawPixmap(r.topLeft(), pm)
         for q in self.world.particles:

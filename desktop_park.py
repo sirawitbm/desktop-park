@@ -260,6 +260,12 @@ class App:
             a.setChecked(m == self.data["time_mode"])
         self.save_soon()
 
+    def set_show_sky(self, on):
+        self.data["show_sky"] = bool(on)
+        self.sky_action.setChecked(self.data["show_sky"])
+        self.weather.update()
+        self.save_soon()
+
     # -- look --------------------------------------------------------------------
     def set_theme(self, theme):
         """Switch between the Modern and Pixel looks, right away."""
@@ -294,6 +300,8 @@ class App:
         night = daycycle.night_level(mode=self.data["time_mode"])
         w.night = self.park.world.night = night
         w.glows = self.park.glows() if night > 0.02 else []
+        self.park.world.lights = [(x, y, r) for x, y, r, _, _ in w.glows]
+        w.sky = daycycle.sky(mode=self.data["time_mode"]) if self.data["show_sky"] else None
         if w.kind != self.data["weather"]:          # auto mode changed it
             self.set_weather(w.kind)
 
@@ -413,6 +421,11 @@ class App:
             tgroup.addAction(a)
             tmenu.addAction(a)
             self.time_actions[mode] = a
+        tmenu.addSeparator()
+        self.sky_action = QAction("Show sun && moon", tmenu, checkable=True)
+        self.sky_action.setChecked(self.data["show_sky"])
+        self.sky_action.triggered.connect(self.set_show_sky)
+        tmenu.addAction(self.sky_action)
         lmenu = menu.addMenu("Look")
         self.look_actions = {}
         group = QActionGroup(lmenu)

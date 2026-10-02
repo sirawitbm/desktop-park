@@ -2,9 +2,10 @@
 images the windows can paint."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QImage, QPixmap, QTransform
+from PySide6.QtGui import QColor, QImage, QPainter, QPixmap, QTransform
 
 import art as artmod
+import daycycle
 
 
 def frame_image(picture, frame_rows):
@@ -41,6 +42,13 @@ class Library:
         self.custom[picture["id"]] = picture
         self.forget(picture["id"])
 
+    def set_clock(self, text, body):
+        """The clock decoration shows a new time (called when the minute changes)."""
+        picture = self.builtin.get("clock")
+        if picture is not None:
+            picture["frames"] = [artmod.clock_rows(text, body)]
+            self.forget("clock")
+
     def remove_custom(self, art_id):
         self.custom.pop(art_id, None)
         self.forget(art_id)
@@ -60,7 +68,24 @@ class Library:
     def frame_count(self, art_id):
         return max(1, len(self.images(art_id)))
 
-    def pixmap(self, art_id, frame, scale, flip):
+    def pixmap(self, art_id, frame, scale, flip, shade=(0.0, 0.0)):
+        """The picture at this size and facing. shade = (night, light) gives it
+        the time-of-day tint (rounded with daycycle.bucket)."""
+        if shade[0] > 0:
+            key = (art_id, frame, scale, flip, shade)
+            pm = self._pixmaps.get(key)
+            if pm is None:
+                base = self.pixmap(art_id, frame, scale, flip)
+                if base is None:
+                    return None
+                r, g, b, a = daycycle.tint(*shade)
+                pm = QPixmap(base)
+                p = QPainter(pm)
+                p.setCompositionMode(QPainter.CompositionMode_SourceAtop)   # only on the picture
+                p.fillRect(pm.rect(), QColor(r, g, b, int(a * 255)))
+                p.end()
+                self._store(key, pm)
+            return pm
         key = (art_id, frame, scale, flip)
         pm = self._pixmaps.get(key)
         if pm is None:
@@ -73,10 +98,13 @@ class Library:
             img = img.scaled(img.width() * scale, img.height() * scale,
                              Qt.IgnoreAspectRatio, Qt.FastTransformation)
             pm = QPixmap.fromImage(img)
-            if len(self._pixmaps) > 600:
-                self._pixmaps.clear()
-            self._pixmaps[key] = pm
+            self._store(key, pm)
         return pm
+
+    def _store(self, key, pm):
+        if len(self._pixmaps) > 2000:
+            self._pixmaps.clear()
+        self._pixmaps[key] = pm
 
     def opaque(self, art_id, frame, ax, ay):
         imgs = self.images(art_id)

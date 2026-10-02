@@ -102,6 +102,7 @@ class World:
         self._last_reaction = {}
         self.wind = 0.0         # px/s from the weather; pushes flyers, swimmers, particles
         self.night = 0.0        # 0 = day, 1 = night (daycycle.py): pets get sleepy
+        self.lights = []        # [(x, y, radius)] lamps and fires, while it is dark
 
     @property
     def ground(self):
@@ -233,7 +234,8 @@ class World:
             t.age += dt
             if t.dragging:
                 continue
-            if self._sleepy(t) and rng.random() < dt * NAP_CHANCE * self.night:
+            cosy = 3.0 if self.lights and self.light_at(t.x + t.w / 2, t.y + t.h / 2) > 0.3 else 1.0
+            if self._sleepy(t) and rng.random() < dt * NAP_CHANCE * self.night * cosy:
                 self.nap(t, rng)
             if t.reaction and self._react(t, dt, rng):
                 self.clamp(t)
@@ -252,6 +254,28 @@ class World:
             p[4] *= 0.92                      # sideways drift slows down
             p[3] -= dt
         self.particles = [p for p in self.particles if p[3] > 0]
+
+    def light_at(self, x, y):
+        """0..1: how brightly the nearest lamp or fire lights this spot."""
+        best = 0.0
+        for lx, ly, r in self.lights:
+            best = max(best, 1.0 - math.hypot(x - lx, y - ly) / (r * 1.3))
+        return best
+
+    def _nearest_light(self, t):
+        cx = t.x + t.w / 2
+        return min(self.lights, key=lambda l: abs(l[0] - cx)) if self.lights else None
+
+    def _toward_light(self, t, rng):
+        """At night a walking pet often heads for the nearest lamp or fire.
+        Returns -1/+1 for the way to go, 0 if it is already there, None if not."""
+        if self.night < 0.5 or not self.lights or rng.random() > 0.7:
+            return None
+        lx, _, r = self._nearest_light(t)
+        dx = lx - (t.x + t.w / 2)
+        if abs(dx) < r * 0.6:
+            return 0
+        return 1 if dx > 0 else -1
 
     def _sleepy(self, t):
         """A pet that is resting at night, so it may doze off."""
@@ -333,10 +357,14 @@ class World:
             if t.state == "move":
                 t.state, t.vx, t.timer = "idle", 0.0, rng.uniform(1.0, 4.0)
             else:
-                speed = (25 + t.scale * 8) * t.speed_mult
-                t.state = "move"
-                t.vx = speed if rng.random() < 0.5 else -speed
-                t.timer = rng.uniform(2.0, 6.0)
+                way = self._toward_light(t, rng)
+                if way == 0:                     # already by the fire: stay cosy
+                    t.timer = rng.uniform(3.0, 7.0)
+                else:
+                    speed = (25 + t.scale * 8) * t.speed_mult
+                    t.state = "move"
+                    t.vx = speed * (way or (1 if rng.random() < 0.5 else -1))
+                    t.timer = rng.uniform(2.0, 6.0)
         t.x += t.vx * dt
         self._bounce_walls(t)
 
@@ -345,19 +373,30 @@ class World:
             return
         t.timer -= dt
         if t.timer <= 0:
+            way = self._toward_light(t, rng)
+            if way == 0:                         # already by the fire: stay cosy
+                t.timer = rng.uniform(2.0, 5.0)
+                return
             direction = rng.choice((-1, 1)) if rng.random() < 0.3 else (-1 if t.flip else 1)
+            direction = way or direction
             t.vx = direction * rng.uniform(60, 130) * t.speed_mult
             t.vy = -rng.uniform(220, 330)
             t.flip = direction < 0
             t.state = "air"
 
-    def _swim(self, t, dt, rng, speed_range=(35, 80), pause=(0.5, 3.0)):
+    def _swim(self, t, dt, rng, speed_range=(35, 80), pause=(0.5, 3.0), moth=0.25):
         if t.state == "idle":
             t.vx = t.vy = 0.0
             t.timer -= dt
             if t.timer <= 0:
-                t.target = (rng.uniform(0, max(0, self.width - t.w)),
-                            rng.uniform(0, max(0, self.ground - t.h)))
+                if self.night > 0.5 and self.lights and rng.random() < moth:
+                    # like a moth: drift over to a lamp or fire
+                    lx, ly, r = rng.choice(self.lights)
+                    t.target = (min(max(lx + rng.uniform(-0.8, 0.8) * r - t.w / 2, 0), max(0, self.width - t.w)),
+                                min(max(ly + rng.uniform(-0.8, 0.4) * r - t.h / 2, 0), max(0, self.ground - t.h)))
+                else:
+                    t.target = (rng.uniform(0, max(0, self.width - t.w)),
+                                rng.uniform(0, max(0, self.ground - t.h)))
                 t.speed = rng.uniform(*speed_range) * t.speed_mult
                 t.state = "move"
             return
@@ -381,7 +420,7 @@ class World:
             t.speed = max(80.0, t.speed - 300 * dt)
 
     def _fly(self, t, dt, rng):
-        self._swim(t, dt, rng, speed_range=(120, 240), pause=(0.2, 1.5))
+        self._swim(t, dt, rng, speed_range=(120, 240), pause=(0.2, 1.5), moth=0.6)
 
 
 def thing_at(things, x, y, opaque):
