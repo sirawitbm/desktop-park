@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject, QPoint, QTimer, QUrl, Signal
 from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
+import daycycle
 import store
 import updates
 import winutil
@@ -22,7 +23,7 @@ from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
 from weather_window import WeatherWindow
 from sprites import Library
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 UPDATE_FIRST_MS = 5000                 # first look for a new version
 UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
@@ -251,6 +252,14 @@ class App:
         self.hide_action.setChecked(on)
         self.save_soon()
 
+    # -- day and night -------------------------------------------------------------
+    def set_time_mode(self, mode):
+        """Follow the clock, or keep it always day / always night."""
+        self.data["time_mode"] = mode if mode in daycycle.MODES else "clock"
+        for m, a in self.time_actions.items():
+            a.setChecked(m == self.data["time_mode"])
+        self.save_soon()
+
     # -- look --------------------------------------------------------------------
     def set_theme(self, theme):
         """Switch between the Modern and Pixel looks, right away."""
@@ -281,6 +290,10 @@ class App:
 
     def _weather_step(self, w):
         self.park.world.wind = w.gust()
+        # day and night: glowing lights, fireflies and sleepy pets after dark
+        night = daycycle.night_level(mode=self.data["time_mode"])
+        w.night = self.park.world.night = night
+        w.glows = self.park.glows() if night > 0.02 else []
         if w.kind != self.data["weather"]:          # auto mode changed it
             self.set_weather(w.kind)
 
@@ -390,6 +403,16 @@ class App:
         self.weather_auto_action = QAction("Changes by itself", wmenu, checkable=True)
         self.weather_auto_action.triggered.connect(self.set_weather_auto)
         wmenu.addAction(self.weather_auto_action)
+        tmenu = menu.addMenu("Time of day")
+        self.time_actions = {}
+        tgroup = QActionGroup(tmenu)
+        for mode in daycycle.MODES:
+            a = QAction(daycycle.LABELS[mode], tmenu, checkable=True)
+            a.setChecked(mode == self.data["time_mode"])
+            a.triggered.connect(lambda _=False, m=mode: self.set_time_mode(m))
+            tgroup.addAction(a)
+            tmenu.addAction(a)
+            self.time_actions[mode] = a
         lmenu = menu.addMenu("Look")
         self.look_actions = {}
         group = QActionGroup(lmenu)

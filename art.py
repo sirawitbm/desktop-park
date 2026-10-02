@@ -530,6 +530,9 @@ def builtin_by_id():
     return {a["id"]: dict(a, builtin=True) for a in BUILTIN}
 
 
-from art_pack import PACK  # noqa: E402  (the bigger shared-palette set)
+from art_pack import GLOWS, HALLOWEEN, PACK  # noqa: E402  (the bigger shared-palette set)
 
-BUILTIN += PACK
+BUILTIN += PACK + HALLOWEEN
+for _a in BUILTIN:
+    if _a["id"] in GLOWS:
+        _a["glow"] = GLOWS[_a["id"]]

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout
                                QVBoxLayout, QWidget)
 
 import art as artmod
+import daycycle
 import ui_style
 import weather as weathermod
 from sprites import frame_image
@@ -293,11 +294,18 @@ class Board(QWidget):
             if item.widget():
                 item.widget().deleteLater()
         pets_label, decor_label, mine_label, empty_label = self.look["sections"]
-        pets = [a for a in self.library.builtin.values() if a["kind"] == "pet"]
-        decos = [a for a in self.library.builtin.values() if a["kind"] != "pet"]
+        everyday = [a for a in self.library.builtin.values() if not a.get("set")]
+        spooky = [a for a in self.library.builtin.values() if a.get("set") == "halloween"]
+        pets = [a for a in everyday if a["kind"] == "pet"]
+        decos = [a for a in everyday if a["kind"] != "pet"]
         mine = self.library.custom_list()
+        halloween = "HALLOWEEN" if not self.look["icons"] else "Halloween"
+        if daycycle.is_halloween_season():           # October: spooky things first
+            self._slots(halloween, spooky)
         self._slots(pets_label, pets)
         self._slots(decor_label, decos)
+        if not daycycle.is_halloween_season():
+            self._slots(halloween, spooky)
         if mine:
             self._slots(mine_label, mine, custom=True)
         else:

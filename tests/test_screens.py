@@ -45,7 +45,7 @@ class RelocateTests(unittest.TestCase):
             self.assertAlmostEqual(y1, y2, delta=2)
 
     def test_screen_choice_is_saved(self):
-        self.assertEqual(store.clean({"screen": "\\.\DISPLAY2"})["screen"], "\\.\DISPLAY2")
+        self.assertEqual(store.clean({"screen": r"\.\DISPLAY2"})["screen"], r"\.\DISPLAY2")
         self.assertEqual(store.clean({"screen": 2})["screen"], "")
 
 

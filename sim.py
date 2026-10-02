@@ -20,6 +20,9 @@ REACTION_TIME = {"love": 0.6, "jump": 0.8, "spin": 0.8, "shake": 0.7,
 # How much the wind pushes things that move this way (flyers feel it most).
 WIND_PUSH = {"fly": 0.15, "swim": 0.07}   # gentle, or they all end up on one side
 # While doing these, the pet stops its normal wandering.
+# At night, a resting pet dozes off now and then (chance per second at full night).
+NAP_CHANCE = 1 / 25
+NAP_TIME = (8.0, 20.0)
 HOLDS_STILL = ("spin", "shake", "dance", "sleep")
 
 
@@ -27,7 +30,7 @@ class Thing:
     """One object placed in the park."""
 
     def __init__(self, uid, art_id, w, h, x=0.0, y=0.0, scale=4,
-                 behavior="stay", flip=False, speed_mult=1.0):
+                 behavior="stay", flip=False, speed_mult=1.0, is_pet=False):
         self.uid = uid
         self.art_id = art_id
         self.art_w, self.art_h = w, h        # size in art pixels
@@ -36,6 +39,7 @@ class Thing:
         self.behavior = behavior
         self.flip = flip                     # True = facing left
         self.speed_mult = speed_mult         # snails are slow, bees are not
+        self.is_pet = is_pet                 # decorations never react or nap
         self.vx = self.vy = 0.0
         self.timer = 0.0                     # seconds left in this state
         self.state = "idle"
@@ -97,6 +101,7 @@ class World:
         self.particles = []
         self._last_reaction = {}
         self.wind = 0.0         # px/s from the weather; pushes flyers, swimmers, particles
+        self.night = 0.0        # 0 = day, 1 = night (daycycle.py): pets get sleepy
 
     @property
     def ground(self):
@@ -228,6 +233,8 @@ class World:
             t.age += dt
             if t.dragging:
                 continue
+            if self._sleepy(t) and rng.random() < dt * NAP_CHANCE * self.night:
+                self.nap(t, rng)
             if t.reaction and self._react(t, dt, rng):
                 self.clamp(t)
                 continue
@@ -245,6 +252,20 @@ class World:
             p[4] *= 0.92                      # sideways drift slows down
             p[3] -= dt
         self.particles = [p for p in self.particles if p[3] > 0]
+
+    def _sleepy(self, t):
+        """A pet that is resting at night, so it may doze off."""
+        if not t.is_pet or self.night < 0.5 or t.reaction or t.behavior == "stay":
+            return False
+        if t.state != "idle":
+            return False
+        return t.behavior in ("swim", "fly") or (self.on_ground(t) and t.vy >= 0)
+
+    def nap(self, t, rng=random):
+        t.reaction, t.reaction_t, t._fx_t = "sleep", rng.uniform(*NAP_TIME), 0.3
+        t.vx = 0.0
+        if t.behavior in ("swim", "fly"):
+            t.vy, t.target = 0.0, None
 
     def _react(self, t, dt, rng):
         """Run the current click reaction. True = skip normal movement."""

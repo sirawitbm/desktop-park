@@ -10,13 +10,17 @@ themselves can be grabbed. A small floating board lets you add things, draw
 your own, change the weather, and lock or hide the park - and folds down into
 a slim bar that fits inside your taskbar.
 
-- **18 animated pets:** cat, dog, bunny, frog, duck, chick, penguin, crab,
-  turtle, snail, bee, butterfly, bird, fish, ghost, jellyfish, pufferfish, slime
-- **26 decorations:** trees, flowers, a cottage, a campfire, a pond, crystals and more
+- **20 animated pets:** cat, dog, bunny, frog, duck, chick, penguin, crab,
+  turtle, snail, bee, butterfly, bird, fish, ghost, jellyfish, pufferfish,
+  slime, and for Halloween a bat and a witch cat
+- **30 decorations:** trees, flowers, a cottage, a campfire, a pond, crystals,
+  and for Halloween a jack-o'-lantern, a spooky tree, a gravestone and a cauldron
 - **Draw your own** pets and decorations, with animation frames
 - **Any picture can walk, hop, swim, fly or stay still** - your choice
 - **Weather:** sun rays, rain, snow that piles up, or wind that blows leaves
   (and your flying pets) around - or let it change by itself
+- **Day & night:** after dark the lamps, campfire and lanterns glow,
+  fireflies come out and the pets get sleepy
 - **Taskbar bar:** fold the board into a slim bar with weather, hide and
   lock buttons, and keep it in the Windows taskbar
 - **Two looks:** clean **Modern**, or **Pixel** to match the art
@@ -40,6 +44,26 @@ Your desktop gets its own sky. Pick the weather on the board, or press
 
 The weather never gets in your way: it lives in its own window that every
 click passes straight through
+
+## Day & night
+
+![The park at night: lamp posts, a campfire, jack-o'-lanterns and a cauldron glowing, fireflies drifting, bats flying and sleepy pets with Zzz](docs/night.gif)
+
+The park follows your computer's clock. From about 6 pm the light fades into
+night until early morning:
+
+- **Lights glow** - lamp posts, the campfire, the cottage window, crystals,
+  and the Halloween jack-o'-lanterns and cauldron. Fire and lanterns flicker.
+- **Fireflies** drift near the ground on dry nights.
+- **Pets get sleepy** and doze off for a while (Zzz). Click one to wake it.
+
+It never darkens your screen - only the park changes. To see it any time,
+right-click the fish in the tray and pick **Time of day > Always night**
+(or **Always day**, or **Follow my clock**, the default).
+
+**Halloween:** a bat, a witch cat, jack-o'-lanterns, a spooky tree, a
+gravestone and a bubbling cauldron are on the board all year. In October
+they move to the top.
 
 ## Download
 
@@ -141,10 +165,11 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 | `desktop_park.py` | Starts everything, saving, the tray icon |
 | `park.py` | The see-through full-screen window, mouse, right-click menu |
 | `sim.py` | How things move and react (pure logic, unit tested) |
-| `weather.py` | Rain, snow, wind and sun (pure logic, unit tested) |
+| `weather.py` | Rain, snow, wind, sun and fireflies (pure logic, unit tested) |
+| `daycycle.py` | How dark it is from the clock, and Halloween season |
 | `weather_window.py` | Draws the weather in its own click-through window |
 | `updates.py` | Asks GitHub whether a newer version is out |
-| `tools/weather_demo.py` | Renders the README's weather pictures off-screen |
+| `tools/weather_demo.py`, `tools/night_demo.py` | Render the README's weather and night pictures off-screen |
 | `board.py` | The floating control board |
 | `editor.py` | The pixel editor |
 | `art.py`, `art_pack.py` | The built-in pixel art, written as rows of letters |

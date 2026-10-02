@@ -34,7 +34,8 @@ def park_file():
 def empty():
     return {"version": 1, "custom_art": [], "objects": [], "board": {},
             "locked": False, "hidden": False, "seeded": False,
-            "weather": "clear", "weather_auto": False, "skip_update": "", "screen": "", "theme": "modern"}
+            "weather": "clear", "weather_auto": False, "skip_update": "", "screen": "", "theme": "modern",
+            "time_mode": "clock"}
 
 
 def load(path=None):
@@ -112,6 +113,8 @@ def clean(raw):
     data["board"]["collapsed"] = board.get("collapsed") is True
     if raw.get("weather") in WEATHER_KINDS:
         data["weather"] = raw["weather"]
+    if raw.get("time_mode") in ("clock", "day", "night"):
+        data["time_mode"] = raw["time_mode"]
     if raw.get("theme") in ("modern", "pixel"):
         data["theme"] = raw["theme"]
     if isinstance(raw.get("screen"), str):

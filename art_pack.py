@@ -642,3 +642,168 @@ PACK = [
         "....kkkkkkkk....",
     ]]),
 ]
+
+
+def _witch_cat(cat_rows):
+    """The cat, recoloured black with yellow eyes, wearing a witch hat."""
+    recolour = str.maketrans({"c": "K", "C": "s", "e": "y"})
+    hat = [
+        "............k...",
+        "...........kVk..",
+        "..........kVVVk.",
+        "..........kOOOk.",
+        ".........kvvvvvk",
+    ]
+    return hat + [r.translate(recolour) for r in cat_rows[2:]]
+
+
+_CAT = [
+    [
+        "..........k...k.",
+        "k.........kk.kk.",
+        "kc........kcccck",
+        ".kc.......kcecek",
+        ".kc.kkkkkkkCCpCk",
+        "..kccccccccckkk.",
+        "..kcCcccCcccck..",
+        "..kcccccccccck..",
+        "...kck.kck.kck..",
+        "...kk..kk..kk...",
+    ],
+    [
+        "..........k...k.",
+        "..........kk.kk.",
+        "k.........kcccck",
+        "kc........kcecek",
+        ".kc.kkkkkkkCCpCk",
+        "..kccccccccckkk.",
+        "..kcCcccCcccck..",
+        "..kcccccccccck..",
+        "..kck..kck..kck.",
+        "..kk...kk....kk.",
+    ],
+]
+
+# The Halloween set ("set": shown together on the board, at the top in October).
+HALLOWEEN = [
+    dict(pet("bat", "Bat", "fly", [
+        [
+            "k............k",
+            "Vk...k..k...kV",
+            "vVk..kkkk..kVv",
+            ".vVkkvyvykkVv.",
+            "..vvkvvvvkvv..",
+            "....kkvvkk....",
+            "......kk......",
+            "..............",
+        ],
+        [
+            "..............",
+            ".....k..k.....",
+            ".....kkkk.....",
+            "....kvyvyk....",
+            "..kkkvvvvkkk..",
+            ".kVvvkvvkvvVk.",
+            "kVv..kkkk..vVk",
+            "k............k",
+        ],
+    ], speed=1.1), set="halloween"),
+    dict(pet("witchcat", "Witch cat", "walk", [_witch_cat(f) for f in _CAT]), set="halloween"),
+    dict(deco("jack", "Jack-o'-lantern", [
+        [
+            ".....kgk....",
+            "..kkkkkkkk..",
+            ".kOOOkkOOOk.",
+            "kOyyOOOOyyOk",
+            "kOOyOOOOyOOk",
+            "kOOOOOOOOOOk",
+            "kOyOyyyyOyOk",
+            "kOOyyOOyyOOk",
+            ".krrOOOOrrk.",
+            "..kkkkkkkk..",
+        ],
+        [
+            ".....kgk....",
+            "..kkkkkkkk..",
+            ".kOOOkkOOOk.",
+            "kOYYOOOOYYOk",
+            "kOOYOOOOYOOk",
+            "kOOOOOOOOOOk",
+            "kOYOYYYYOYOk",
+            "kOOYYOOYYOOk",
+            ".krrOOOOrrk.",
+            "..kkkkkkkk..",
+        ],
+    ]), set="halloween"),
+    dict(deco("spookytree", "Spooky tree", [[
+        "......k.....k...",
+        ".k....vk...kv...",
+        ".vk...vk..kv..k.",
+        "..vk..vk.kv..kv.",
+        "...vkkvkkv..kv..",
+        "....vvVvv..kv...",
+        ".kk..vVv.kkv....",
+        "..vvkvVvkvv.....",
+        "....vvVvvk......",
+        "......vVv.......",
+        "......vVv.......",
+        "......vVvk......",
+        ".....vvVvv......",
+        "....vvVVvvv.....",
+        "...vv.vVv.vv....",
+        "..kk..kkk..kk...",
+    ]]), set="halloween"),
+    dict(deco("grave", "Gravestone", [[
+        "...kkkk...",
+        ".kkSSSSkk.",
+        "kSSSSSSSsk",
+        "kSSSkSSSsk",
+        "kSSkkkSSsk",
+        "kSSSkSSSsk",
+        "kSSSkSSSsk",
+        "kSSSSSSSsk",
+        "kSSSSSSssk",
+        "kSGSSSSssk",
+        "kGGGssssGk",
+        "kkkkkkkkkk",
+    ]]), set="halloween"),
+    dict(deco("cauldron", "Cauldron", [
+        [
+            "....l.......",
+            ".......l....",
+            "..l.........",
+            "kkkkkkkkkkkk",
+            "kGlGGlGGGlGk",
+            ".kKKKKKKKKk.",
+            "kKsKKKKKKKKk",
+            "kKsKKKKKKKKk",
+            "kKKKKKKKKKKk",
+            ".kKKKKKKKKk.",
+            "..kk....kk..",
+        ],
+        [
+            ".......l....",
+            "..l.........",
+            ".....l...l..",
+            "kkkkkkkkkkkk",
+            "kGGlGGGlGGGk",
+            ".kKKKKKKKKk.",
+            "kKsKKKKKKKKk",
+            "kKsKKKKKKKKk",
+            "kKKKKKKKKKKk",
+            ".kKKKKKKKKk.",
+            "..kk....kk..",
+        ],
+    ]), set="halloween"),
+]
+
+# Things that light up at night: colour, glow radius (in art pixels), where the
+# light sits inside the picture (fractions across and down), and whether it flickers.
+GLOWS = {
+    "lamp": ("#ffc94a", 13, (0.5, 0.28), False),
+    "campfire": ("#ff8c2a", 16, (0.5, 0.45), True),
+    "jack": ("#ff9a2e", 11, (0.5, 0.55), True),
+    "cauldron": ("#7dff6a", 10, (0.5, 0.3), True),
+    "crystal": ("#5ff0ff", 8, (0.45, 0.5), False),
+    "cottage": ("#ffc94a", 8, (0.3, 0.65), False),
+}

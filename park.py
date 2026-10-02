@@ -76,7 +76,23 @@ class ParkWindow(QWidget):
         w, h = artmod.size_of(picture)
         kw.setdefault("behavior", picture.get("behavior", "stay"))
         kw.setdefault("speed_mult", picture.get("speed", 1.0))
+        kw.setdefault("is_pet", picture.get("kind") == "pet")
         return Thing(kw.pop("uid", None) or self.new_uid(), art_id, w, h, **kw)
+
+    def glows(self):
+        """Where the lights are, for the night glow: (x, y, radius, colour, flickers)."""
+        out = []
+        for t in self.world.things:
+            picture = self.library.get(t.art_id)
+            glow = picture.get("glow") if picture else None
+            if not glow:
+                continue
+            colour, radius, (fx, fy), flickers = glow
+            x, y, w, h = t.rect()
+            if t.flip:
+                fx = 1 - fx
+            out.append((x + fx * w, y + fy * h, radius * t.scale, colour, flickers))
+        return out
 
     def add_art(self, art_id, scale=4):
         t = self.make_thing(art_id, scale=scale)
@@ -108,6 +124,7 @@ class ParkWindow(QWidget):
         for t in self.world.things:
             if t.art_id == art_id:
                 t.art_w, t.art_h = w, h
+                t.is_pet = picture.get("kind") == "pet"
                 self.world.clamp(t)
         self.update()
 

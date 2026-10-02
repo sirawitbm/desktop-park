@@ -11,6 +11,7 @@ KINDS = ("clear", "sun", "rain", "snow", "wind")
 LABELS = {"clear": "Clear", "sun": "Sunny", "rain": "Rain", "snow": "Snow", "wind": "Windy"}
 
 MAX_PARTICLES = 700
+FIREFLIES = 26           # at most this many on a 1920-pixel-wide screen
 SNOW_CELL = 4            # snow piles up in columns this many pixels wide
 SNOW_MAX = 16            # tallest the pile gets, in pixels
 AUTO_MIN, AUTO_MAX = 4 * 60, 10 * 60     # auto mode changes every 4-10 minutes
@@ -35,6 +36,8 @@ class Weather:
         self.wind = 0.0              # current wind, eases toward the target
         self.sun = 0.0               # 0..1, sun rays fade in and out
         self.t = 0.0
+        self.night = 0.0             # 0 day .. 1 night (daycycle.py): fireflies, glows
+        self.glows = []              # [(x, y, radius, colour, flickers)] lights in the park
         self.auto = False
         self.auto_timer = 0.0
         self._spawn_debt = {}
@@ -56,7 +59,8 @@ class Weather:
     def busy(self):
         """True while anything is on screen (so the window must redraw)."""
         return (self.kind != "clear" or self.particles or self.sun > 0.01
-                or any(h > 0.05 for h in self.snow))
+                or any(h > 0.05 for h in self.snow)
+                or self.night > 0.02)
 
     def gust(self):
         """Wind that comes and goes a little, so it doesn't look mechanical."""
@@ -82,7 +86,12 @@ class Weather:
         self._melt(dt)
 
     def _spawn(self, dt, rng):
-        rates = SPAWN.get(self.kind, {})
+        rates = dict(SPAWN.get(self.kind, {}))
+        # fireflies come out on dry nights
+        if self.night > 0.5 and self.kind in ("clear", "sun", "wind"):
+            fireflies = sum(1 for p in self.particles if p[0] == "firefly")
+            if fireflies < FIREFLIES * self.width / 1920.0:
+                rates["firefly"] = 2.0 * self.night
         scale = self.width / 1920.0
         for kind, per_sec in rates.items():
             debt = self._spawn_debt.get(kind, 0.0) + per_sec * scale * dt
@@ -107,6 +116,10 @@ class Weather:
             return ["streak", -120.0, rng.uniform(0, h * 0.9), 0.0, 0.0, 99.0, seed]
         if kind == "leaf":
             return ["leaf", -10.0, rng.uniform(0, h * 0.8), 0.0, rng.uniform(-20, 30), 99.0, seed]
+        if kind == "firefly":
+            # near the ground, where the plants are
+            return ["firefly", rng.uniform(0, w), rng.uniform(h * 0.55, h - 10), 0.0, 0.0,
+                    rng.uniform(6.0, 12.0), seed]
         # sun mote: a slow sparkle drifting in the light
         return ["mote", rng.uniform(0, w * 0.7), rng.uniform(0, h * 0.7), 0.0, -8.0,
                 rng.uniform(2.0, 4.0), seed]
@@ -143,6 +156,11 @@ class Weather:
             elif kind == "leaf":
                 p[1] += (gust * 1.4 + 60) * dt
                 p[2] += (p[4] + math.sin(self.t * 3 + p[6] * 9) * 40) * dt
+            elif kind == "firefly":
+                # a lazy wander, nudged by the wind
+                p[1] += (math.sin(self.t * 0.7 + p[6] * 20) * 18 + gust * 0.3) * dt
+                p[2] += math.sin(self.t * 0.9 + p[6] * 13) * 10 * dt
+                p[5] -= dt
             elif kind == "mote":
                 p[1] += (gust * 0.4 + math.sin(self.t + p[6] * 5) * 6) * dt
                 p[2] += p[4] * dt
