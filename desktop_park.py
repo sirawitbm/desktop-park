@@ -27,7 +27,7 @@ from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
 from weather_window import WeatherWindow
 from sprites import Library
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 UPDATE_FIRST_MS = 5000                 # first look for a new version
 UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
@@ -84,6 +84,7 @@ class App:
         self.board.hide_toggled.connect(self.set_hidden)
         self.board.clear_park.connect(self.clear_park)
         self.board.moved.connect(self.save_soon)
+        self.board.moved.connect(lambda: QTimer.singleShot(0, self._sync_board_owner))
         self.board.closed.connect(self._board_closed)
         self.board.weather_changed.connect(self.set_weather)
         self.board.weather_auto.connect(self.set_weather_auto)
@@ -129,6 +130,15 @@ class App:
         self._autosave = QTimer(interval=30000)       # pets wander; remember where
         self._autosave.timeout.connect(self.save)
         self._autosave.start()
+        # Clicking the taskbar puts it in front of every always-on-top window.
+        # Watch the foreground window and re-pin at once when it changes
+        # (cheap: one call, 4 times a second), on top of the slower pin.
+        self._board_owner = 0
+        self._last_foreground = 0
+        self._focus_watch = QTimer(interval=250)
+        self._focus_watch.timeout.connect(self._watch_foreground)
+        self._focus_watch.start()
+        QTimer.singleShot(0, self._sync_board_owner)
         self._pin = QTimer(interval=2000)
         self._pin.timeout.connect(self.pin)
         self._pin.start()
@@ -648,11 +658,31 @@ class App:
                                   "Click the fish to bring it back.", QSystemTrayIcon.Information, 4000)
 
     # -- housekeeping ----------------------------------------------------------
+    def _sync_board_owner(self):
+        """While the board sits on a taskbar, make that taskbar its owner so
+        it can never end up behind it; clear that when it is dragged away."""
+        if not self.board.isVisible():
+            return
+        hwnd = int(self.board.winId())
+        owner = int(winutil.taskbar_under(hwnd) or 0)
+        if owner != self._board_owner or winutil.owner_of(hwnd) != owner:
+            if winutil.set_owner(hwnd, owner):
+                self._board_owner = owner
+            winutil.pin_topmost(hwnd)
+
+    def _watch_foreground(self):
+        fg = winutil.foreground()
+        if fg == self._last_foreground:
+            return
+        self._last_foreground = fg
+        self.pin()
+
     def pin(self):
         """Stay above other windows. Skipped while a menu is open (it would
         bury the menu) or while a dialog is up."""
         if self.qapp.activePopupWidget() or self.qapp.activeModalWidget():
             return
+        self._sync_board_owner()
         if self.weather.isVisible():
             winutil.pin_topmost(int(self.weather.winId()))
         if self.park.isVisible():

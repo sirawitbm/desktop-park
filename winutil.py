@@ -8,6 +8,7 @@ from ctypes import wintypes
 HWND_TOPMOST = -1
 SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE = 0x0001, 0x0002, 0x0010
 GWL_EXSTYLE = -20
+GWLP_HWNDPARENT = -8          # for a top-level window: its OWNER window
 WS_EX_TRANSPARENT = 0x00000020
 WS_EX_TOOLWINDOW = 0x00000080
 WS_EX_NOACTIVATE = 0x08000000
@@ -24,6 +25,14 @@ if os.name == "nt":
     U.GetWindowLongPtrW.restype = ctypes.c_ssize_t
     U.SetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_ssize_t)
     U.SetWindowLongPtrW.restype = ctypes.c_ssize_t
+    U.FindWindowW.argtypes = (wintypes.LPCWSTR, wintypes.LPCWSTR)
+    U.FindWindowW.restype = wintypes.HWND
+    U.FindWindowExW.argtypes = (wintypes.HWND, wintypes.HWND, wintypes.LPCWSTR, wintypes.LPCWSTR)
+    U.FindWindowExW.restype = wintypes.HWND
+    U.GetWindowRect.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.RECT))
+    U.GetWindowRect.restype = wintypes.BOOL
+    U.GetForegroundWindow.argtypes = ()
+    U.GetForegroundWindow.restype = wintypes.HWND
     U.WindowFromPoint.argtypes = (wintypes.POINT,)
     U.WindowFromPoint.restype = wintypes.HWND
     U.MessageBoxW.argtypes = (wintypes.HWND, wintypes.LPCWSTR,
@@ -67,6 +76,81 @@ def click_through(hwnd, on):
         set_ex_style(hwnd, add=WS_EX_TRANSPARENT)
     else:
         set_ex_style(hwnd, remove=WS_EX_TRANSPARENT)
+
+
+def taskbars():
+    """Every taskbar window: the main one and those on other monitors."""
+    if os.name != "nt":
+        return []
+    found = []
+    try:
+        for name in ("Shell_TrayWnd", "Shell_SecondaryTrayWnd"):
+            hwnd = U.FindWindowW(name, None)
+            while hwnd:
+                found.append(hwnd)
+                hwnd = U.FindWindowExW(None, hwnd, name, None)
+    except (AttributeError, OSError, ValueError):
+        pass
+    return found
+
+
+def window_rect(hwnd):
+    """(left, top, right, bottom) in physical screen pixels, or None."""
+    if os.name != "nt":
+        return None
+    try:
+        r = wintypes.RECT()
+        if U.GetWindowRect(hwnd, ctypes.byref(r)):
+            return r.left, r.top, r.right, r.bottom
+    except (AttributeError, OSError, ValueError):
+        pass
+    return None
+
+
+def taskbar_under(hwnd):
+    """The taskbar this window overlaps, or None. Physical pixels on both
+    sides, so it is right at any display scaling."""
+    mine = window_rect(hwnd)
+    if mine is None:
+        return None
+    for bar in taskbars():
+        r = window_rect(bar)
+        if r and mine[0] < r[2] and mine[2] > r[0] and mine[1] < r[3] and mine[3] > r[1]:
+            return bar
+    return None
+
+
+def set_owner(hwnd, owner):
+    """Make `owner` this window's owner (0 = none). Windows always keeps an
+    owned window above its owner, so a bar owned by the taskbar stays on top
+    of it even right after the taskbar is clicked (the taskbar jumps to the
+    front of the always-on-top windows when clicked)."""
+    if os.name != "nt":
+        return False
+    try:
+        ctypes.set_last_error(0)
+        previous = U.SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, int(owner or 0))
+        return bool(previous or ctypes.get_last_error() == 0)
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
+def owner_of(hwnd):
+    if os.name != "nt":
+        return 0
+    try:
+        return int(U.GetWindowLongPtrW(hwnd, GWLP_HWNDPARENT) or 0)
+    except (AttributeError, OSError, ValueError):
+        return 0
+
+
+def foreground():
+    if os.name != "nt":
+        return 0
+    try:
+        return int(U.GetForegroundWindow() or 0)
+    except (AttributeError, OSError, ValueError):
+        return 0
 
 
 def window_at(x, y):
