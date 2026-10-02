@@ -60,7 +60,8 @@ evening):
 
 - **The sun and moon move.** A pixel sun rises in the left corner of your
   screen in the morning, arcs across the top and sets in the right corner in
-  the evening; then the moon does the same overnight, with a few twinkling
+  the evening. It is small and low in the corners and biggest at its peak, where
+  it only peeks in half-way from the top edge, so it never takes much room; then the moon does the same overnight, with a few twinkling
   stars. With **Light rays** on, the beams shine from the sun by day and the
   moon by night.
 - **The park changes colour.** At sunset the pets and plants take on a warm

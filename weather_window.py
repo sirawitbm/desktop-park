@@ -106,8 +106,7 @@ class WeatherWindow(QWidget):
         self._was_busy = False
         self._glow_cache = {}
         self._cloud_cache = {}
-        self._moon = None
-        self._sun = None
+        self._bodies = {}               # (sun/moon, pixel size) -> picture
         self._sky_ticks = 0
         rng = random.Random(7)                  # the same sky every night
         self._stars = [(rng.random(), rng.random() * 0.36, rng.random(), rng.random() < 0.2)
@@ -244,16 +243,15 @@ class WeatherWindow(QWidget):
 
     def body_pos(self, w):
         """Centre of the sun or moon on its arc across the top of the screen."""
-        body, progress = w.sky
-        pm = self._body_pixmap(body)
-        x, y = daycycle.arc(progress, self.width(), self.height(), pm.width())
-        return x + pm.width() / 2, y + pm.height() / 2
+        x, y, _ = daycycle.arc(w.sky[1], self.width(), self.height())
+        return x, y
 
-    def _body_pixmap(self, body):
-        if self._moon is None:
-            self._moon = QPixmap.fromImage(_moon_image())
-            self._sun = QPixmap.fromImage(_sun_image())
-        return self._sun if body == "sun" else self._moon
+    def _body_pixmap(self, body, scale):
+        key = (body, scale)
+        if key not in self._bodies:
+            img = _sun_image(scale=scale) if body == "sun" else _moon_image(n=16, scale=scale)
+            self._bodies[key] = QPixmap.fromImage(img)
+        return self._bodies[key]
 
     def _body(self, p, w):
         """The sun by day, the moon by night, following the clock."""
@@ -261,8 +259,8 @@ class WeatherWindow(QWidget):
         strength = ((1.0 - w.night) if body == "sun" else w.night) * w.sky_strength()
         if strength <= 0.02:
             return
-        pm = self._body_pixmap(body)
-        cx, cy = self.body_pos(w)
+        cx, cy, scale = daycycle.arc(w.sky[1], self.width(), self.height())
+        pm = self._body_pixmap(body, scale)
         radius = int(pm.width() * 1.25)
         glow = self._glow_pixmap(radius, "#ffe9a8" if body == "sun" else "#cfdcff")
         p.setOpacity(0.35 * strength)
