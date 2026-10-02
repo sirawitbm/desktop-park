@@ -166,7 +166,7 @@ class LookTests(unittest.TestCase):
         ui_style.install(self.app, "pixel")
         b.apply_theme("pixel")
         self.assertTrue(b.lock_btn.isChecked() and b.quick_lock.isChecked())
-        self.assertEqual(b.hide_btn.text(), "Show")
+        self.assertEqual(b.hide_btn.text().strip(), "Show")
         self.assertTrue(b.weather_btns["rain"].isChecked())
         self.assertFalse(b.draw_btn.icon().isNull())              # pixel look has icons
         ui_style.install(self.app, "modern")

@@ -144,7 +144,8 @@ QToolButton#quick { background: transparent; border: 1px solid transparent; bord
 QToolButton#quick:hover { background: #2c3449; border-color: #3a4258; }
 QToolButton#quick:checked { background: #2f3f6e; border-color: #5b7bd5; }
 QToolButton#quick:checked:hover { background: #3a4d85; }
-QToolButton#head, QToolButton#close { color: #8d97b3; border-radius: 9px; padding: 0 6px; }
+QToolButton#head, QToolButton#close { color: #c9d1e6; border-radius: 9px; padding: 0 6px; }
+QToolButton#head { font-size: 12pt; }
 QToolButton#head:hover { color: #ffffff; background: #2c3449; }
 QToolButton#close:hover { color: #ffffff; background: #8c3a4a; }
 QToolButton#newver { border-radius: 9px; padding: 1px 8px; }

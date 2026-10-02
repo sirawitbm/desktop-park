@@ -115,11 +115,24 @@ class Library:
             return img.pixelColor(ax, ay).alpha() > 0
         return False
 
-    def thumbnail(self, art_id, box=40):
+    def thumbnail(self, art_id, box=40, max_scale=None, bottom=False):
+        """The first frame, as big as fits in a box x box square (whole pixels
+        only). max_scale keeps small pictures from being blown up, so a snail
+        stays snail-sized next to a tree; bottom lines it up on the box's floor."""
         imgs = self.images(art_id)
         if not imgs:
             return QPixmap()
         img = imgs[0]
         scale = max(1, min(box // max(1, img.width()), box // max(1, img.height())))
-        return QPixmap.fromImage(img.scaled(img.width() * scale, img.height() * scale,
-                                            Qt.IgnoreAspectRatio, Qt.FastTransformation))
+        if max_scale:
+            scale = min(scale, max_scale)
+        img = img.scaled(img.width() * scale, img.height() * scale,
+                         Qt.IgnoreAspectRatio, Qt.FastTransformation)
+        if not bottom:
+            return QPixmap.fromImage(img)
+        canvas = QImage(box, box, QImage.Format_ARGB32_Premultiplied)
+        canvas.fill(Qt.transparent)
+        p = QPainter(canvas)
+        p.drawImage((box - img.width()) // 2, box - img.height() - 2, img)
+        p.end()
+        return QPixmap.fromImage(canvas)

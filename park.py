@@ -6,7 +6,7 @@ park never gets in the way of your work.
 """
 
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QActionGroup, QPainter, QPixmap, QRegion
+from PySide6.QtGui import QActionGroup, QColor, QImage, QPainter, QPixmap, QRegion
 from PySide6.QtWidgets import QMenu, QWidget
 
 import art as artmod
@@ -15,6 +15,7 @@ import winutil
 from sprites import frame_image
 from sim import MAX_SCALE, MIN_SCALE, Thing, World, thing_at
 
+SHADOW = QColor(26, 28, 44, 95)     # the soft strip under things on the ground
 TICK_MS = 33          # movement updates ~30 times a second; frames flip at 10fps
 DRAG_START_PX = 4
 
@@ -159,10 +160,24 @@ class ParkWindow(QWidget):
         pm = self._particle_pm.get(kind)
         if pm is None:
             palette, rows = artmod.PARTICLES[kind]
-            img = frame_image({"palette": palette, "frames": [rows]}, rows)
+            img = _outlined(frame_image({"palette": palette, "frames": [rows]}, rows))
             pm = QPixmap.fromImage(img.scaled(img.width() * 3, img.height() * 3))
             self._particle_pm[kind] = pm
         return pm
+
+    def _shadow_rect(self, t):
+        """A soft strip on the ground under things that stand or walk there,
+        so they sit on the taskbar instead of floating. Jumping pets keep
+        their shadow on the ground; it shrinks the higher they go."""
+        if t.behavior in ("swim", "fly") or t.dragging:
+            return None
+        ground = self.world.ground
+        above = ground - (t.y + t.h)
+        if t.behavior == "stay" and above > 1:
+            return None                               # a decoration placed in mid-air
+        k = max(0.35, 1.0 - max(0.0, above) / 220.0)
+        width = (t.w + 2 * t.scale) * k
+        return QRect(int(t.x + t.w / 2 - width / 2), int(ground - t.scale), int(width), int(t.scale))
 
     def _particle_rect(self, p):
         pm = self._particle(p[0])
@@ -172,6 +187,7 @@ class ParkWindow(QWidget):
         if not self.isVisible():
             return
         before = {t.uid: self._rect(t) for t in self.world.things}
+        shadows_before = {t.uid: self._shadow_rect(t) for t in self.world.things}
         frames = {t.uid: self._frame(t) for t in self.world.things}
         parts_before = [self._particle_rect(q) for q in self.world.particles]
         self.world.step(TICK_MS / 1000.0)
@@ -201,6 +217,9 @@ class ParkWindow(QWidget):
                 old = before.get(t.uid)
                 if old is not None:
                     dirty += old.adjusted(-1, -1, 1, 1)
+                for s in (shadows_before.get(t.uid), self._shadow_rect(t)):
+                    if s is not None:
+                        dirty += s.adjusted(-1, -1, 1, 1)
         if not dirty.isEmpty():
             self.update(dirty)
 
@@ -210,6 +229,10 @@ class ParkWindow(QWidget):
         p.fillRect(event.rect(), Qt.transparent)
         p.setCompositionMode(QPainter.CompositionMode_SourceOver)
         clip = event.rect()
+        for t in self.world.things:
+            s = self._shadow_rect(t)
+            if s is not None and s.intersects(clip):
+                p.fillRect(s, SHADOW)
         for t in self.world.things:
             r = self._rect(t)
             if not r.intersects(clip):
@@ -235,7 +258,15 @@ class ParkWindow(QWidget):
     def thing_under(self, pos):
         def opaque(t, ax, ay):
             return self.library.opaque(t.art_id, self._frame(t), ax, ay)
-        return thing_at(self.world.things, pos.x(), pos.y(), opaque)
+        hit = thing_at(self.world.things, pos.x(), pos.y(), opaque)
+        if hit is None:
+            # the shadow strip is drawn in this window, so it catches the click:
+            # treat it as part of the thing rather than swallowing the click
+            for t in reversed(self.world.things):
+                s = self._shadow_rect(t)
+                if s is not None and s.contains(pos):
+                    return t
+        return hit
 
     def mousePressEvent(self, e):
         if self.locked:
@@ -372,3 +403,21 @@ class ParkWindow(QWidget):
             self.world.things.remove(t)
         self.update(self._rect(t))
         self.changed.emit()
+
+
+def _outlined(img, colour=QColor(26, 28, 44)):
+    """The picture with a one-pixel dark outline around it, so the little
+    reaction pictures read on white windows as well as dark wallpapers."""
+    out = QImage(img.width() + 2, img.height() + 2, QImage.Format_ARGB32_Premultiplied)
+    out.fill(Qt.transparent)
+    for y in range(img.height()):
+        for x in range(img.width()):
+            if img.pixelColor(x, y).alpha() == 0:
+                continue
+            for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
+                if out.pixelColor(x + dx, y + dy).alpha() == 0:
+                    out.setPixelColor(x + dx, y + dy, colour)
+    p = QPainter(out)
+    p.drawImage(1, 1, img)
+    p.end()
+    return out

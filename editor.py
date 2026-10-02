@@ -53,7 +53,8 @@ class Canvas(QWidget):
         c = self.cell()
         ox, oy = self.origin()
         w, h = self.ed.w, self.ed.h
-        light, dark = QColor("#3a3f4f"), QColor("#30354a")
+        # a mid-grey checkerboard: see-through squares never look like black paint
+        light, dark = QColor("#8d93a0"), QColor("#7a808e")
         for y in range(h):
             for x in range(w):
                 p.fillRect(ox + x * c, oy + y * c, c, c, light if (x + y) % 2 else dark)
@@ -71,7 +72,7 @@ class Canvas(QWidget):
                 if col:
                     p.fillRect(ox + x * c, oy + y * c, c, c, QColor(col))
         if c >= 8:
-            p.setPen(QColor(255, 255, 255, 18))
+            p.setPen(QColor(0, 0, 0, 28))
             for x in range(w + 1):
                 p.drawLine(ox + x * c, oy, ox + x * c, oy + h * c)
             for y in range(h + 1):

@@ -46,7 +46,7 @@ def is_halloween_season(today=None):
 # fire stay lit.
 SUNSET = (214, 104, 96)
 MOON = (24, 34, 86)
-MAX_TINT = 0.62
+MAX_TINT = 0.5            # never darker than this, so pets stay readable at night
 
 
 def tint(night, light=0.0):

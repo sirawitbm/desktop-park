@@ -20,7 +20,7 @@ COLS = 5
 SLOT = 46
 ICON = QSize(18, 18)
 TIME_ICONS = {"clock": "clock", "day": "day", "night": "moon"}
-TIME_TEXT = {"clock": "Clock", "day": "Day", "night": "Night"}
+TIME_TEXT = {"clock": " Clock", "day": " Day", "night": " Night"}   # space: gap after the icon
 
 # What the board says and shows in each look.
 LOOK = {
@@ -37,8 +37,8 @@ LOOK = {
     "pixel": {
         "width": COLS * SLOT + (COLS - 1) * 4 + 74, "margins": (6, 6, 6, 8), "head_margins": (6, 3, 3, 3),
         "folded_margins": (6, 1, 1, 1), "scroll": 330, "slot_icon": 38, "icons": True,
-        "draw": "Draw your own", "lock": ("Lock", "Locked"), "hide": ("Hide", "Show"),
-        "clear": "Clear", "screen": "", "logo_open": True,
+        "draw": " Draw your own", "lock": (" Lock", " Locked"), "hide": (" Hide", " Show"),
+        "clear": " Clear", "screen": "", "logo_open": True,
         "sections": ("Pets", "Nature & decor", "My drawings", "My drawings"),
         "empty": "Nothing yet - draw one below!",
         "hint": "Drag things, click pets, scroll to resize, right-click for more.",
@@ -131,7 +131,7 @@ class Board(QWidget):
         head.setSpacing(4)
         self._head = head
         self.logo = QLabel()
-        self.logo.setPixmap(library.thumbnail("fish", 24))
+        self.logo.setPixmap(library.thumbnail("fish", 26))
         self.logo.setToolTip("Desktop Park - drag me anywhere, even into the taskbar")
         self.title = QLabel("Desktop Park", objectName="title")
         head.addWidget(self.logo)
@@ -321,6 +321,7 @@ class Board(QWidget):
         while self.grid.count():
             item = self.grid.takeAt(0)
             if item.widget():
+                item.widget().hide()          # gone at once, not on the next frame
                 item.widget().deleteLater()
         pets_label, decor_label, mine_label, empty_label = self.look["sections"]
         everyday = [a for a in self.library.builtin.values() if not a.get("set")]
@@ -351,7 +352,7 @@ class Board(QWidget):
         size = self.look["slot_icon"]
         for i, picture in enumerate(pictures):
             b = QToolButton(objectName="thumb")
-            b.setIcon(QIcon(self.library.thumbnail(picture["id"], size)))
+            b.setIcon(QIcon(self.library.thumbnail(picture["id"], size, max_scale=2, bottom=True)))
             b.setIconSize(QSize(size, size))
             b.setFixedSize(SLOT, SLOT)
             b.setCursor(Qt.PointingHandCursor)
@@ -531,7 +532,7 @@ class Board(QWidget):
             self.close_btn.setIcon(_ui_icon("close"))
         else:
             self.fold_btn.setIcon(QIcon())
-            self.fold_btn.setText("▴" if on else "–")
+            self.fold_btn.setText("▲" if on else "–")
             self.close_btn.setIcon(QIcon())
             self.close_btn.setText("×")
         size = 26 if (on and not look["icons"]) else 22

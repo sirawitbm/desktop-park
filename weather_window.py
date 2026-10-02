@@ -277,16 +277,28 @@ class WeatherWindow(QWidget):
         if pm is not None:
             return pm
         rng = random.Random(seed)
-        w, h = size, max(6, int(size * 0.48))
-        puffs = []
-        for fx, fr in ((0.24, 0.20), (0.48, 0.30), (0.72, 0.22), (0.36, 0.17), (0.6, 0.18)):
-            r = fr * w * rng.uniform(0.85, 1.15)
-            puffs.append((fx * w + rng.uniform(-1.5, 1.5), h - r * 0.85, r))
+        w, h = size, max(7, int(size * 0.55))
+        # a lumpy cumulus: a tall puff near the middle, lower shoulders, a few
+        # extra bumps along the top - every cloud a little different
+        puffs = [(w * rng.uniform(0.42, 0.58), 0, w * rng.uniform(0.24, 0.3))]
+        for side in (-1, 1):
+            puffs.append((w * (0.5 + side * rng.uniform(0.22, 0.3)), 0, w * rng.uniform(0.15, 0.21)))
+        for _ in range(rng.randint(1, 3)):
+            puffs.append((w * rng.uniform(0.25, 0.75), 0, w * rng.uniform(0.1, 0.17)))
+        puffs = [(cx, h - r * rng.uniform(0.75, 1.0), r) for cx, _, r in puffs]
+
+        left = min(cx - r * 0.8 for cx, _, r in puffs)
+        right = max(cx + r * 0.8 for cx, _, r in puffs)
 
         def inside(x, y):
             if y >= h or x < 0 or x >= w:
                 return False
-            return any(math.hypot(x + 0.5 - cx, y + 0.5 - cy) < r for cx, cy, r in puffs) and y >= 0
+            if y < 0:
+                return False
+            if any(math.hypot(x + 0.5 - cx, y + 0.5 - cy) < r for cx, cy, r in puffs):
+                return True
+            # a flat base under the puffs, so the underside has no notches
+            return y >= h - 3 and left <= x + 0.5 <= right
 
         tone = lambda day, rain, dark: _mix(_mix(day, rain, gloom), dark, night * 0.85)   # noqa: E731
         fill = QColor(*tone((236, 241, 250), (128, 138, 160), (46, 56, 90)))

@@ -23,7 +23,7 @@ from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
 from weather_window import WeatherWindow
 from sprites import Library
 
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 
 UPDATE_FIRST_MS = 5000                 # first look for a new version
 UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
@@ -36,8 +36,8 @@ class _Inbox(QObject):
 
 # What a brand-new park starts with: (art, x as a fraction of the screen, size)
 STARTER_SCENE = [
-    ("pine", 0.70, 4), ("tree", 0.78, 5), ("bush", 0.86, 3), ("rock", 0.92, 3),
-    ("grass", 0.74, 3), ("flower", 0.83, 4), ("mushroom", 0.95, 3),
+    ("pine", 0.70, 3), ("tree", 0.78, 3), ("bush", 0.86, 3), ("rock", 0.92, 3),
+    ("grass", 0.74, 3), ("flower", 0.83, 3), ("mushroom", 0.95, 3),
     ("cat", 0.80, 3), ("slime", 0.88, 3), ("fish", 0.75, 3),
 ]
 

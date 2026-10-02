@@ -155,7 +155,7 @@ class TintTests(unittest.TestCase):
         self.assertGreater(r, b)
         r, g, b, a = daycycle.tint(1.0)
         self.assertGreater(b, r)
-        self.assertGreater(a, 0.5)
+        self.assertGreater(a, 0.4)
 
     def test_light_keeps_things_bright(self):
         self.assertLess(daycycle.tint(1.0, light=1.0)[3], daycycle.tint(1.0, light=0.0)[3] / 4)
