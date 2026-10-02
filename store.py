@@ -79,7 +79,10 @@ def _write_json(data, path, backup):
 
 
 def _num(v, default=0):
-    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else default
+    try:
+        return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else default
+    except OverflowError:
+        return default
 
 
 def clean_art(a):

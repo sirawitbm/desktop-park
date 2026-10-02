@@ -121,6 +121,7 @@ class ParkWindow(QWidget):
         return t
 
     def load_things(self, objects, clear_history=True):
+        self._last_resize = (None, 0.0)
         if clear_history:
             self._undo.clear()
             self.undo_changed.emit(False)
@@ -164,6 +165,7 @@ class ParkWindow(QWidget):
         return [t.to_dict() for t in self.world.things]
 
     def checkpoint(self, settings=None):
+        self._last_resize = (None, 0.0)
         self._undo.append((self.snapshot(), self.world.width, self.world.height, settings))
         self._undo = self._undo[-40:]
         self.undo_changed.emit(True)

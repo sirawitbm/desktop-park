@@ -154,8 +154,8 @@ matches the pets. It switches right away and is remembered.
 **Saving:** drawings are written immediately when you press Save. If a write
 fails, the editor stays open and the board shows **Changes not saved** with
 a Retry button (a **!** button on the folded bar). The warning clears only
-after a successful save. Quitting from the tray does not exit while a save
-fails.
+after a successful save. If saving fails while quitting from the tray, choose
+**Retry**, **Quit without saving** (discards unsaved changes), or **Cancel**.
 
 **Updates:** Desktop Park checks GitHub for a new version a few seconds after
 it starts and every 6 hours. If there is one, a green bar appears on the

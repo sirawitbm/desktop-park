@@ -365,6 +365,44 @@ class WorkflowTests(unittest.TestCase):
         park.undo()
         self.assertEqual(park.world.things[0].scale, 3)
 
+    def test_resize_after_undo_starts_a_new_step(self):
+        park = self.owner().park
+        tree = park.add_art("tree", scale=3)
+        with patch("park.time.monotonic", return_value=100.0):
+            park.set_scale(tree, 4)
+            park.undo()
+            park.set_scale(park.world.things[0], 5)
+            park.undo()
+        self.assertEqual(len(park.world.things), 1)
+        self.assertEqual(park.world.things[0].scale, 3)
+
+    def test_resize_after_another_edit_starts_a_new_step(self):
+        park = self.owner().park
+        tree = park.add_art("tree", scale=3)
+        with patch("park.time.monotonic", return_value=100.0):
+            park.set_scale(tree, 4)
+            park._flip(tree)
+            park.set_scale(tree, 5)
+            park.undo()
+        self.assertEqual(park.world.things[0].scale, 4)
+        self.assertTrue(park.world.things[0].flip)
+        park.undo()
+        self.assertFalse(park.world.things[0].flip)
+        park.undo()
+        self.assertEqual(park.world.things[0].scale, 3)
+
+    def test_resize_after_scene_load_starts_a_new_step(self):
+        park = self.owner().park
+        tree = park.add_art("tree", scale=3)
+        with patch("park.time.monotonic", return_value=100.0):
+            park.set_scale(tree, 4)
+            objects = park.snapshot()
+            objects[0]["scale"] = 6
+            park.load_things(objects)
+            park.set_scale(park.world.things[0], 8)
+            park.undo()
+        self.assertEqual(park.world.things[0].scale, 6)
+
     def test_big_sprites_at_night_do_not_thrash_the_cache(self):
         from sprites import Library
         library = Library([])

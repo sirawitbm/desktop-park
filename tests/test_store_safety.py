@@ -28,6 +28,25 @@ class StoreSafetyTests(unittest.TestCase):
             f.write(NESTED)
         self.assertEqual(store.load(path)["weather"], "snow")     # starts, from the .bak
 
+    def test_oversized_numbers_are_defaulted_on_load(self):
+        for value in (10**400, -(10**400)):
+            with self.subTest(value=value):
+                path = self.path("park.json")
+                backup = store.empty()
+                backup["weather"] = "snow"
+                store.save(backup, path + ".bak")
+                store.save({"weather": "rain",
+                            "objects": [{"art": "tree", "x": value, "y": value, "scale": value}],
+                            "board": {"x": value, "y": value},
+                            "presets": [{"name": "Park", "width": value, "height": value}]}, path)
+                data = store.load(path)
+                self.assertEqual(data["weather"], "rain")
+                self.assertEqual((data["objects"][0]["x"], data["objects"][0]["y"]), (0, 0))
+                self.assertEqual(data["objects"][0]["scale"], 4)
+                self.assertEqual((data["board"]["x"], data["board"]["y"]), (0, 0))
+                self.assertEqual((data["presets"][0]["width"], data["presets"][0]["height"]),
+                                 (1920, 1040))
+
     def test_deeply_nested_drawing_file_is_a_clear_error(self):
         path = self.path("bad.parkart")
         with open(path, "w", encoding="utf-8") as f:
