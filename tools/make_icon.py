@@ -1,5 +1,9 @@
-"""Draw the app icon (the fish) to assets/DesktopPark.ico. Needs Pillow.
-Run once and commit the .ico:  python tools/make_icon.py
+"""Draw the app icon (the park tile in art.APP_ICON) to assets/DesktopPark.ico.
+Needs Pillow. Run once and commit the .ico:  python tools/make_icon.py
+
+Every size is the 16 x 16 design scaled by whole pixels (nearest neighbour),
+so the icon stays crisp at 16, 32, 48 ... 256 px instead of being blurred
+by a downscale.
 """
 
 import sys
@@ -11,23 +15,25 @@ sys.path.insert(0, str(ROOT))
 from PIL import Image  # noqa: E402
 
 import art  # noqa: E402
+from art_pack import PAL  # noqa: E402
+
+
+def base_image():
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for y, row in enumerate(art.APP_ICON):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                c = PAL[ch].lstrip("#")
+                img.putpixel((x, y), tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) + (255,))
+    return img
 
 
 def main():
-    fish = art.builtin_by_id()["fish"]
-    rows = fish["frames"][0]
-    w, h = art.size_of(fish)
-    side = max(w, h) + 2
-    img = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-    ox, oy = (side - w) // 2, (side - h) // 2
-    for y, row in enumerate(rows):
-        for x, ch in enumerate(row):
-            if ch != ".":
-                c = fish["palette"][ch].lstrip("#")
-                img.putpixel((ox + x, oy + y), tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) + (255,))
-    big = img.resize((256, 256), Image.NEAREST)
+    base = base_image()
+    sizes = [16, 24, 32, 48, 64, 128, 256]
+    images = [base.resize((s, s), Image.NEAREST) for s in sizes]
     out = ROOT / "assets" / "DesktopPark.ico"
-    big.save(out, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    images[-1].save(out, format="ICO", sizes=[(s, s) for s in sizes], append_images=images[:-1])
     print("Wrote", out)
 
 

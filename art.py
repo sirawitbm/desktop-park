@@ -391,3 +391,25 @@ CLOCK = {"id": "clock", "name": "Clock", "kind": "deco", "behavior": "stay",
          "palette": CLOCK_PALETTE, "frames": [clock_rows()], "dynamic": "clock",
          "glow": ("#ffcd4f", 7, (0.55, 0.45), False)}
 BUILTIN.append(CLOCK)
+
+
+# -- the app icon: a little park tile (sky, sun, a tree on grass), 16 x 16 ------------
+# Drawn for 16 px (the tray) and scaled by whole pixels for bigger sizes.
+APP_ICON = [
+    "..kkkkkkkkkkkk..",
+    ".kccccccccckyyk.",
+    "kcccccccccckyYyk",
+    "kcCCcccccccckyyk",
+    "kccccckkkcccckkk",
+    "kcccckGGGkccccck",
+    "kccckGlGGGkccCck",
+    "kccckGGGGgkcccck",
+    "kccckgGGggkcccck",
+    "kcccckkbkkccccck",
+    "kccccckbkcccccck",
+    "kGGGGGGbGGGGGGGk",
+    "kGlGGGGGGGlGGGGk",
+    "kgGGGGGGGGGGGGgk",
+    ".kggggggggggggk.",
+    "..kkkkkkkkkkkk..",
+]

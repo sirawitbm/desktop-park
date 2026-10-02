@@ -4,7 +4,7 @@ images the windows can paint."""
 from collections import OrderedDict
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QImage, QPainter, QPixmap, QTransform
+from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap, QTransform
 
 import art as artmod
 import daycycle
@@ -187,3 +187,19 @@ class Library:
         p.drawImage((box - img.width()) // 2, box - img.height() - 2, img)
         p.end()
         return QPixmap.fromImage(canvas)
+
+
+def app_icon_pixmap(scale=1):
+    """The park-tile app icon (art.APP_ICON), scaled by whole pixels."""
+    from art_pack import PAL
+    rows = artmod.APP_ICON
+    img = frame_image({"palette": PAL, "frames": [rows]}, rows)
+    return QPixmap.fromImage(img.scaled(16 * scale, 16 * scale, Qt.IgnoreAspectRatio, Qt.FastTransformation))
+
+
+def app_icon():
+    """The app icon at the sizes Windows asks for, each pixel-crisp."""
+    icon = QIcon()
+    for scale in (1, 2, 3, 4, 8, 16):
+        icon.addPixmap(app_icon_pixmap(scale))
+    return icon

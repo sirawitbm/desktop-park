@@ -135,17 +135,18 @@ run it from source (below).
   when you plug it in again.
 - **Lock:** clicks go through everything, even the pets. Good for gaming.
 - **Hide park / Show park:** hides the whole park (and its weather). Also on
-  the folded bar and in the tray menu (the fish icon by the clock).
+  the folded bar and in the tray menu (the park icon by the clock: a little
+  tree and sun).
 - **Fold the board** with the "-" button in its title bar. It becomes a slim
   bar that fits **inside the Windows taskbar** - drag it there by the
-  fish. Its bottom edge stays put, so the arrow button opens the board
+  park icon. Its bottom edge stays put, so the arrow button opens the board
   upward again. The "x" button hides the board into the tray icon.
 
 <br clear="right">
 
 ![The folded bar in both looks, with weather, time, hide, lock, undo and board controls](docs/polish/hotbar.png)
 
-**Two looks:** right-click the fish in the tray and pick **Look > Modern** (the
+**Two looks:** right-click the park icon in the tray and pick **Look > Modern** (the
 default) or **Look > Pixel**, a modern pixel-art style with a pixel font that
 matches the pets. It switches right away and is remembered.
 

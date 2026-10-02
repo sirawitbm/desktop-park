@@ -14,7 +14,7 @@ import art as artmod
 import daycycle
 import ui_style
 import weather as weathermod
-from sprites import frame_image
+from sprites import app_icon_pixmap, frame_image
 
 COLS = 5
 SLOT = 46
@@ -182,7 +182,7 @@ class Board(QWidget):
         head.setSpacing(4)
         self._head = head
         self.logo = QLabel()
-        self.logo.setPixmap(library.thumbnail("fish", 26))
+        self.logo.setPixmap(app_icon_pixmap(2))
         self.logo.setToolTip("Desktop Park - drag me anywhere, even into the taskbar")
         self.title = QLabel("Desktop Park", objectName="title")
         head.addWidget(self.logo)

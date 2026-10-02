@@ -25,9 +25,9 @@ from editor import Editor
 from park import ParkWindow
 from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
 from weather_window import WeatherWindow
-from sprites import Library
+from sprites import Library, app_icon
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 UPDATE_FIRST_MS = 5000                 # first look for a new version
 UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
@@ -575,7 +575,7 @@ class App:
 
     # -- tray ------------------------------------------------------------------
     def _make_tray(self):
-        self.tray = QSystemTrayIcon(QIcon(self.library.thumbnail("fish", 32)))
+        self.tray = QSystemTrayIcon(app_icon())
         self.tray.setToolTip("Desktop Park")
         menu = QMenu()
         menu.addAction("Show the board", self.show_board)
@@ -655,7 +655,7 @@ class App:
         if not getattr(self, "_told_tray", False):
             self._told_tray = True
             self.tray.showMessage("Desktop Park", "The board is hiding in the tray icon. "
-                                  "Click the fish to bring it back.", QSystemTrayIcon.Information, 4000)
+                                  "Click the park icon (a little tree and sun) to bring it back.", QSystemTrayIcon.Information, 4000)
 
     # -- housekeeping ----------------------------------------------------------
     def _sync_board_owner(self):
@@ -771,10 +771,10 @@ def _export_suggestion(picture):
 def main():
     qapp = QApplication(sys.argv)
     qapp.setApplicationName("Desktop Park")
-    qapp.setWindowIcon(QIcon(Library([]).thumbnail("fish", 32)))
+    qapp.setWindowIcon(app_icon())
     if not winutil.acquire_single_instance():
         winutil.message_box("Desktop Park is already running.\n"
-                            "Look for the fish in the tray (by the clock).", "Desktop Park")
+                            "Look for its icon in the tray by the clock\n(a little tree and sun).", "Desktop Park")
         return 0
     app = App(qapp)
     qapp._park_app = app
