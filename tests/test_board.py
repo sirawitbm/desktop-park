@@ -5,7 +5,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # no windows on screen
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"      # never open windows on screen
     from PySide6.QtWidgets import QApplication
 except ImportError:          # the CI test job runs without PySide6
     QApplication = None

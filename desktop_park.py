@@ -3,12 +3,14 @@
 Run:  pythonw desktop_park.py
 """
 
+import os
 import random
+import re
 import sys
 import threading
 import uuid
 
-from PySide6.QtCore import QObject, QPoint, QTimer, QUrl, Signal
+from PySide6.QtCore import QObject, QPoint, QStandardPaths, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QIcon
 from PySide6.QtWidgets import (QApplication, QFileDialog, QInputDialog, QMenu,
                                QMessageBox, QSystemTrayIcon)
@@ -54,6 +56,7 @@ class App:
         self.library = Library(self.data["custom_art"])
         self.editor = None
         self._last_save_error = None
+        self._quit_without_saving = False
         self._save_timer = QTimer(singleShot=True, interval=1500)
         self._save_timer.timeout.connect(self.save)
 
@@ -129,7 +132,7 @@ class App:
         self._pin = QTimer(interval=2000)
         self._pin.timeout.connect(self.pin)
         self._pin.start()
-        qapp.aboutToQuit.connect(self.save)
+        qapp.aboutToQuit.connect(self._save_on_exit)
 
         self.update = None                       # (version, url) of a newer release
         self._inbox = _Inbox()
@@ -386,24 +389,28 @@ class App:
         try:
             picture = store.import_drawing(path)
         except (OSError, ValueError, TypeError) as error:
-            QMessageBox.warning(self.board, "Desktop Park", "Could not import drawing.\n" + str(error))
+            self._warn("Could not import drawing.\n" + str(error))
             return False
         picture["id"] = "my-" + uuid.uuid4().hex
-        return self._install_drawing(picture)
+        if self._install_drawing(picture):
+            return True
+        self._warn("The drawing was imported but couldn't be saved, so it was taken out again.\n\n"
+                   + (self._last_save_error or ""))
+        return False
 
     def export_art(self, art_id, path=None):
         picture = self.library.get(art_id)
         if picture is None:
             return False
         if path is None:
-            path, _ = QFileDialog.getSaveFileName(self.board, "Export drawing", "drawing.parkart",
+            path, _ = QFileDialog.getSaveFileName(self.board, "Export drawing", _export_suggestion(picture),
                                                  "Park drawings (*.parkart)")
         if not path:
             return False
         try:
             store.export_drawing(picture, path)
         except (OSError, ValueError) as error:
-            QMessageBox.warning(self.board, "Desktop Park", "Could not export drawing.\n" + str(error))
+            self._warn("Could not export drawing.\n" + str(error))
             return False
         return True
 
@@ -458,9 +465,17 @@ class App:
         picture = self.library.custom.get(art_id)
         if not picture:
             return
-        box = QMessageBox(QMessageBox.Question, "Desktop Park",
-                          "Delete “%s”?\nAny copies in the park go too." % picture["name"],
+        used_in = [p["name"] for p in self.data["presets"]
+                   if any(obj["art"] == art_id for obj in p["objects"])]
+        text = "Delete \u201c%s\u201d?\n\nAny copies in the park go too." % picture["name"]
+        if used_in:
+            text += ("\nIt is also taken out of %d saved park%s: %s."
+                     % (len(used_in), "" if len(used_in) == 1 else "s", ", ".join(used_in)))
+        text += "\nThis can't be undone."
+        box = QMessageBox(QMessageBox.Question, "Desktop Park", text,
                           QMessageBox.Yes | QMessageBox.No, self.board)
+        box.setTextFormat(Qt.PlainText)        # names can come from imported files
+        box.setDefaultButton(QMessageBox.No)
         if box.exec() != QMessageBox.Yes:
             return
         self.park.remove_art(art_id)
@@ -468,7 +483,7 @@ class App:
         for preset in self.data["presets"]:
             preset["objects"] = [obj for obj in preset["objects"] if obj["art"] != art_id]
         self.board.rebuild()
-        self.save_soon()
+        self.save()                              # right away, like preset edits
 
     # -- saved parks -----------------------------------------------------------
     def _scene_settings(self):
@@ -675,12 +690,52 @@ class App:
             self.editor.close()
             if self.editor is not None:
                 return
-        if not self.save():
-            self.show_board()
-            return
+        while not self.save():
+            choice = self._ask_quit_unsaved()
+            if choice == "retry":
+                continue
+            if choice == "cancel":
+                self.show_board()
+                return
+            self._quit_without_saving = True     # the user chose to leave anyway
+            break
         self.quitting = True
         self.tray.hide()
         self.qapp.exit(0)
+
+    def _ask_quit_unsaved(self):
+        """Saving failed while quitting: Retry, Quit without saving or Cancel.
+        There must always be a way out - the tray is the only way to quit."""
+        box = QMessageBox(QMessageBox.Warning, "Desktop Park",
+                          "Desktop Park couldn't save your park, so recent changes would be lost.",
+                          parent=self.board)
+        box.setTextFormat(Qt.PlainText)
+        box.setInformativeText("%s\n\nSave folder: %s" % (self._last_save_error or "Unknown error",
+                                                           store.data_dir()))
+        retry = box.addButton("Retry", QMessageBox.AcceptRole)
+        leave = box.addButton("Quit without saving", QMessageBox.DestructiveRole)
+        box.addButton(QMessageBox.Cancel)
+        box.setDefaultButton(retry)
+        box.exec()
+        clicked = box.clickedButton()
+        return "retry" if clicked is retry else "quit" if clicked is leave else "cancel"
+
+    def _save_on_exit(self):
+        if not self._quit_without_saving:
+            self.save()
+
+    def _warn(self, text):
+        box = QMessageBox(QMessageBox.Warning, "Desktop Park", text, parent=self.board)
+        box.setTextFormat(Qt.PlainText)
+        box.exec()
+
+
+
+def _export_suggestion(picture):
+    """A file name from the drawing's name, in the Documents folder."""
+    name = re.sub(r"[^\w\- ]+", "", picture.get("name", "")).strip() or "drawing"
+    folder = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation) or ""
+    return os.path.join(folder, name[:40] + ".parkart")
 
 
 def main():

@@ -9,6 +9,8 @@ from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QActionGroup, QColor, QImage, QPainter, QPixmap, QRegion
 from PySide6.QtWidgets import QMenu, QWidget
 
+import time
+
 import art as artmod
 import daycycle
 import winutil
@@ -47,6 +49,8 @@ class ParkWindow(QWidget):
         self.timer.start(TICK_MS)
         self._particle_pm = {}
         self._shade_key = None          # time-of-day tint last painted
+        self._tints = {}                # uid -> tint bucket it was last painted with
+        self._last_resize = (None, 0.0) # (uid, time): merge mouse-wheel resizes into one Undo
         self._clock_stamp = None        # what the clock decorations last showed
 
     # -- setup ---------------------------------------------------------------
@@ -237,12 +241,19 @@ class ParkWindow(QWidget):
         frames = {t.uid: self._frame(t) for t in self.world.things}
         parts_before = [self._particle_rect(q) for q in self.world.particles]
         self.world.step(self.timer.interval() / 1000.0)
-        # the tint changed (dusk, dawn, a lamp added or moved): repaint everything
-        key = (daycycle.bucket(self.world.night, 0)[0],
-             tuple(self.world.lights))
+        # dusk / dawn moved the tint along: repaint everything (a few times an evening)
+        key = daycycle.bucket(self.world.night, 0)[0]
         if key != self._shade_key:
             self._shade_key = key
+            self._tints.clear()
             self.update()
+        tint_dirty = QRegion()
+        if self.world.night > 0.02:
+            # a lamp or fire moved, appeared or went: repaint only the things whose
+            # lighting actually changed (a moving lamp must not redraw the whole screen)
+            for t in self.world.things:
+                if self._tints.get(t.uid, self._shade(t)) != self._shade(t):
+                    tint_dirty += self._rect(t).adjusted(-1, -1, 1, 1)
         # clock decorations show the real time
         stamp = (daycycle.clock_text(), "moon" if self.world.night >= 0.5 else "sun")
         if stamp != self._clock_stamp:
@@ -266,6 +277,7 @@ class ParkWindow(QWidget):
                 for s in (shadows_before.get(t.uid), self._shadow_rect(t)):
                     if s is not None:
                         dirty += s.adjusted(-1, -1, 1, 1)
+        dirty += tint_dirty
         if not dirty.isEmpty():
             self.update(dirty)
 
@@ -275,6 +287,7 @@ class ParkWindow(QWidget):
         p.fillRect(event.rect(), Qt.transparent)
         p.setCompositionMode(QPainter.CompositionMode_SourceOver)
         clip = event.rect()
+        self.library.begin_paint()
         for t in self.world.things:
             s = self._shadow_rect(t)
             if s is not None and s.intersects(clip):
@@ -283,10 +296,8 @@ class ParkWindow(QWidget):
             r = self._rect(t)
             if not r.intersects(clip):
                 continue
-            shade = (0.0, 0.0)
-            if self.world.night > 0.02:
-                light = self.world.light_at(r.center().x(), r.center().y())
-                shade = daycycle.bucket(self.world.night, light)
+            shade = self._shade(t)
+            self._tints[t.uid] = shade
             pm = self.library.pixmap(t.art_id, self._frame(t), t.scale, t.flip, shade)
             if pm is not None:
                 p.drawPixmap(r.topLeft(), pm)
@@ -295,6 +306,13 @@ class ParkWindow(QWidget):
             p.drawPixmap(self._particle_rect(q).topLeft(), self._particle(q[0]))
         p.setOpacity(1.0)
         p.end()
+
+    def _shade(self, t):
+        """The time-of-day tint for a thing: (night, light) rounded to buckets."""
+        if self.world.night <= 0.02:
+            return (0.0, 0.0)
+        r = self._rect(t)
+        return daycycle.bucket(self.world.night, self.world.light_at(r.center().x(), r.center().y()))
 
     def is_pet(self, t):
         picture = self.library.get(t.art_id)
@@ -375,7 +393,12 @@ class ParkWindow(QWidget):
         scale = max(MIN_SCALE, min(MAX_SCALE, scale))
         if scale == t.scale:
             return
-        self.checkpoint()
+        # a run of mouse-wheel notches on the same thing is one Undo step
+        uid, when = self._last_resize
+        now = time.monotonic()
+        if uid != t.uid or now - when > 1.0:
+            self.checkpoint()
+        self._last_resize = (t.uid, now)
         old = self._visual_rect(t)
         bottom, cx = t.y + t.h, t.x + t.w / 2
         t.scale = scale

@@ -46,22 +46,36 @@ def load(path=None):
             with open(candidate, encoding="utf-8") as f:
                 raw = json.load(f)
             return clean(raw)
-        except (OSError, ValueError, TypeError, AttributeError):
+        except (OSError, ValueError, TypeError, AttributeError, RecursionError):
+            # RecursionError: deeply nested JSON (a damaged or crafted file) - use the backup
             continue
     return empty()
 
 
 def save(data, path=None):
+    """Save the park: write a temporary file, keep the old file as .bak, then
+    swap the new one in, so a crash mid-save can't leave half a file."""
     path = path or park_file()
+    _write_json(data, path, backup=True)
+
+
+def _write_json(data, path, backup):
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=1)
-    if os.path.exists(path):
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=1)
+        if backup and os.path.exists(path):
+            try:
+                os.replace(path, path + ".bak")
+            except OSError:
+                pass
+        os.replace(tmp, path)
+    except OSError:
         try:
-            os.replace(path, path + ".bak")
+            os.remove(tmp)                  # don't leave a half-written .tmp behind
         except OSError:
             pass
-    os.replace(tmp, path)
+        raise
 
 
 def _num(v, default=0):
@@ -161,14 +175,18 @@ def export_drawing(picture, path):
     picture = clean_art(picture)
     if picture is None:
         raise ValueError("This drawing has no valid frames.")
-    save({"format": "desktop-park-drawing", "version": 1, "picture": picture}, path)
+    # the user's own file: replace it safely, but leave no .bak or .tmp next to it
+    _write_json({"format": "desktop-park-drawing", "version": 1, "picture": picture}, path, backup=False)
 
 
 def import_drawing(path):
     if os.path.getsize(path) > 1024 * 1024:
         raise ValueError("Drawing files must be smaller than 1 MB.")
-    with open(path, encoding="utf-8") as source:
-        raw = json.load(source)
+    try:
+        with open(path, encoding="utf-8") as source:
+            raw = json.load(source)
+    except RecursionError:
+        raise ValueError("This drawing file is damaged.") from None
     if (not isinstance(raw, dict) or raw.get("format") != "desktop-park-drawing"
             or raw.get("version") != 1):
         raise ValueError("This is not a supported Desktop Park drawing file.")

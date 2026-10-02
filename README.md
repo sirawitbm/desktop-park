@@ -207,12 +207,13 @@ pythonw desktop_park.py
 Or double-click `Desktop Park.bat`. Run the tests with
 `python -m unittest discover -s tests`.
 
-For art/UI review images, install Pillow (`pip install pillow`) and run
-`python tools/contact_sheets.py docs/polish` and
-`python tools/screenshots.py docs/polish`. Use
-`python tools/profile_weather.py` for off-screen 1080p/4K render timings.
-These do not measure native Windows GPU/compositor costs. Development and
-review notes are in [docs/DEVELOPMENT_REVIEW.md](docs/DEVELOPMENT_REVIEW.md).
+The README pictures are rendered off-screen (install Pillow first,
+`pip install pillow`): `python tools/screenshots.py docs/polish` for the board,
+editor and park, `python tools/weather_demo.py` and `python tools/night_demo.py`
+for the weather and night animations. `python tools/contact_sheets.py <folder>`
+draws every sprite, icon and cloud for design reviews, and
+`python tools/profile_weather.py` times off-screen 1080p/4K weather rendering
+(it does not measure native Windows GPU/compositor costs).
 
 Where your park is saved: `local/park.json` from source, `data/` next to the
 exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.

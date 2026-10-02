@@ -32,6 +32,14 @@ class Library:
         self._pixmap_bytes = 0
         self.cache_bytes = 48 * 1024 * 1024
         self.cache_entries = 2000
+        self._paint_gen = 0              # bumped once per paint (begin_paint)
+        self._used = {}                  # cache key -> paint it was last used in
+
+    def begin_paint(self):
+        """Called at the start of each paint. Pictures used in the current
+        paint are never evicted, so a scene bigger than the budget goes a bit
+        over it instead of rebuilding its pictures every frame (thrashing)."""
+        self._paint_gen += 1
 
     # -- lookups -------------------------------------------------------------
     def get(self, art_id):
@@ -62,6 +70,7 @@ class Library:
         self._images.pop(art_id, None)
         for key in [k for k in self._pixmaps if k[0] == art_id]:
             self._pixmap_bytes -= self._cost(self._pixmaps.pop(key))
+            self._used.pop(key, None)
 
     # -- images --------------------------------------------------------------
     def images(self, art_id):
@@ -87,7 +96,8 @@ class Library:
             key = (art_id, frame, scale, flip, shade)
             pm = self._cached(key)
             if pm is None:
-                base = self.pixmap(art_id, frame, scale, flip)
+                # at night only the tinted copy is drawn: don't keep the plain one too
+                base = self._cached((art_id, frame, scale, flip)) or self._plain(art_id, frame, scale, flip)
                 if base is None:
                     return None
                 r, g, b, a = daycycle.tint(*shade)
@@ -101,17 +111,21 @@ class Library:
         key = (art_id, frame, scale, flip)
         pm = self._cached(key)
         if pm is None:
-            imgs = self.images(art_id)
-            if not imgs:
-                return None
-            img = imgs[frame % len(imgs)]
-            if flip:
-                img = img.transformed(QTransform().scale(-1, 1))
-            img = img.scaled(img.width() * scale, img.height() * scale,
-                             Qt.IgnoreAspectRatio, Qt.FastTransformation)
-            pm = QPixmap.fromImage(img)
-            self._store(key, pm)
+            pm = self._plain(art_id, frame, scale, flip)
+            if pm is not None:
+                self._store(key, pm)
         return pm
+
+    def _plain(self, art_id, frame, scale, flip):
+        imgs = self.images(art_id)
+        if not imgs:
+            return None
+        img = imgs[frame % len(imgs)]
+        if flip:
+            img = img.transformed(QTransform().scale(-1, 1))
+        img = img.scaled(img.width() * scale, img.height() * scale,
+                         Qt.IgnoreAspectRatio, Qt.FastTransformation)
+        return QPixmap.fromImage(img)
 
     @staticmethod
     def _cost(pm):
@@ -121,6 +135,7 @@ class Library:
         pm = self._pixmaps.get(key)
         if pm is not None:
             self._pixmaps.move_to_end(key)
+            self._used[key] = self._paint_gen
         return pm
 
     def _store(self, key, pm):
@@ -132,9 +147,14 @@ class Library:
             return
         while self._pixmaps and (len(self._pixmaps) >= self.cache_entries
                                  or self._pixmap_bytes + cost > self.cache_bytes):
-            _, old = self._pixmaps.popitem(last=False)
+            oldest = next(iter(self._pixmaps))
+            if self._used.get(oldest) == self._paint_gen:
+                break                  # everything left is on screen right now: go over a little
+            old = self._pixmaps.pop(oldest)
+            self._used.pop(oldest, None)
             self._pixmap_bytes -= self._cost(old)
         self._pixmaps[key] = pm
+        self._used[key] = self._paint_gen
         self._pixmap_bytes += cost
 
     def opaque(self, art_id, frame, ax, ay):

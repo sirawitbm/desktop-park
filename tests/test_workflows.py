@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ["QT_QPA_PLATFORM"] = "offscreen"          # never open windows on screen
 try:
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication, QMessageBox
@@ -151,18 +151,22 @@ class WorkflowTests(unittest.TestCase):
             park.set_scale(thing, 5)
         self.assertTrue(QRegion(shadow).subtracted(update.call_args.args[0]).isEmpty())
 
-    def test_light_radius_changes_invalidate_static_objects(self):
+    def test_light_radius_changes_repaint_the_lit_object_only(self):
         owner = self.owner()
         park = owner.park
-        park.add_art("tree", scale=3)
+        park.resize(800, 600)                               # the window matches its world, as in the app
+        tree = park.add_art("tree", scale=3)
         park.world.night = 1.0
         park.world.lights = [(100, 100, 50)]
         with patch.object(park, "isVisible", return_value=True):
             park._tick()
-            park.world.lights = [(100, 100, 500)]
+            park.grab()                                      # paint once at this tint
+            park.world.lights = [(100, 100, 5000)]           # now it reaches the tree
             with patch.object(park, "update") as update:
                 park._tick()
-        self.assertIn((), [call.args for call in update.call_args_list])
+        calls = [call.args for call in update.call_args_list]
+        self.assertNotIn((), calls)                          # no whole-screen repaint
+        self.assertTrue(any(args and args[0].contains(park._rect(tree).center()) for args in calls))
 
     def test_undo_restores_remove_clear_scale_and_behavior(self):
         owner = self.owner()
@@ -185,8 +189,11 @@ class WorkflowTests(unittest.TestCase):
         library = Library([])
         library.cache_entries = 3
         for index in range(3):
+            library.begin_paint()
             library._store(("probe", index), QPixmap(8, 8))
+        library.begin_paint()
         library._cached(("probe", 0))
+        library.begin_paint()
         library._store(("probe", 3), QPixmap(8, 8))
         self.assertIn(("probe", 0), library._pixmaps)
         self.assertNotIn(("probe", 1), library._pixmaps)
@@ -194,7 +201,9 @@ class WorkflowTests(unittest.TestCase):
         library.forget("probe")
         self.assertEqual(library._pixmap_bytes, 0)
         library.cache_bytes = 256
+        library.begin_paint()
         library._store(("probe", 0), QPixmap(8, 8))
+        library.begin_paint()
         library._store(("probe", 1), QPixmap(8, 8))
         self.assertEqual(len(library._pixmaps), 1)
         self.assertLessEqual(library._pixmap_bytes, library.cache_bytes)
@@ -299,7 +308,7 @@ class WorkflowTests(unittest.TestCase):
         owner = self.owner()
         before = owner.park.snapshot()
         with patch("desktop_park.store.export_drawing", side_effect=OSError("disk full")), \
-                patch("desktop_park.QMessageBox.warning") as warning:
+                patch.object(owner, "_warn") as warning:
             self.assertFalse(owner.export_art("cat", "ignored.parkart"))
         warning.assert_called_once()
         self.assertEqual(owner.park.snapshot(), before)
@@ -309,33 +318,84 @@ class WorkflowTests(unittest.TestCase):
         owner.park.add_art("cat")
         before = owner.park.snapshot()
         with patch("desktop_park.store.import_drawing", side_effect=ValueError("bad format")), \
-                patch("desktop_park.QMessageBox.warning") as warning:
+                patch.object(owner, "_warn") as warning:
             self.assertFalse(owner.import_art("ignored.parkart"))
         warning.assert_called_once()
         self.assertEqual(owner.park.snapshot(), before)
         self.assertEqual(owner.library.custom, {})
 
-    def test_quit_refuses_to_exit_when_saving_fails(self):
+    def test_quit_when_saving_fails_asks_and_never_traps(self):
+        for choice, exits in (("cancel", False), ("quit", True)):
+            owner = self.owner()
+            owner.qapp = Mock()
+            owner.quitting = False
+            owner._quit_without_saving = False
+            with patch("desktop_park.store.save", side_effect=OSError("disk full")), \
+                    patch.object(owner, "show_board"), \
+                    patch.object(owner, "_ask_quit_unsaved", return_value=choice) as ask:
+                owner.quit()
+            ask.assert_called_once()
+            self.assertEqual(owner.qapp.exit.called, exits, choice)
+            self.assertEqual(owner.quitting, exits, choice)
+
+    def test_quit_retry_saves_when_the_problem_is_fixed(self):
         owner = self.owner()
         owner.qapp = Mock()
         owner.quitting = False
-        with patch("desktop_park.store.save", side_effect=OSError("disk full")), \
-                patch.object(owner, "show_board"):
+        owner._quit_without_saving = False
+        outcomes = [OSError("locked"), None]                 # fails once, then works
+        def save(*_a, **_k):
+            result = outcomes.pop(0)
+            if result:
+                raise result
+        with patch("desktop_park.store.save", side_effect=save), \
+                patch.object(owner, "_ask_quit_unsaved", return_value="retry"):
             owner.quit()
-        owner.qapp.exit.assert_not_called()
-        self.assertFalse(owner.quitting)
+        owner.qapp.exit.assert_called_once_with(0)
+        self.assertFalse(owner._quit_without_saving)
 
-    def test_small_light_movements_invalidate_static_objects(self):
+    def test_wheel_resizes_are_one_undo_step(self):
         owner = self.owner()
         park = owner.park
+        tree = park.add_art("tree", scale=3)
+        steps = len(park._undo)
+        for scale in (4, 5, 6, 7):
+            park.set_scale(tree, scale)
+        self.assertEqual(len(park._undo), steps + 1)
+        park.undo()
+        self.assertEqual(park.world.things[0].scale, 3)
+
+    def test_big_sprites_at_night_do_not_thrash_the_cache(self):
+        from sprites import Library
+        library = Library([])
+        library.cache_bytes = 2 * 1024 * 1024               # small budget on purpose
+        misses = []
+        original = library._plain
+        def counting(*args):
+            misses.append(args)
+            return original(*args)
+        library._plain = counting
+        for frame in range(20):                              # 20 paints of the same scene
+            library.begin_paint()
+            for art, flip in (("castle", False), ("castle", True), ("cottage", False), ("tree", True)):
+                library.pixmap(art, 0, 12, flip, (1.0, 0.0))
+        self.assertLessEqual(len(misses), 4)                 # built once each, then reused
+
+    def test_moving_lights_never_repaint_the_whole_park(self):
+        owner = self.owner()
+        park = owner.park
+        park.resize(800, 600)                               # the window matches its world, as in the app
+        park.add_art("tree", scale=3)
         park.world.night = 1.0
         park.world.lights = [(100, 100, 50)]
         with patch.object(park, "isVisible", return_value=True):
             park._tick()
-            park.world.lights = [(101, 100, 50)]
+            park.grab()
             with patch.object(park, "update") as update:
-                park._tick()
-        self.assertIn((), [call.args for call in update.call_args_list])
+                for x in range(101, 140):                    # a lamp walking along
+                    park.world.lights = [(x, 100, 50)]
+                    park._tick()
+        self.assertNotIn((), [call.args for call in update.call_args_list])
 
     def test_undo_after_screen_change_preserves_ground_contact(self):
         owner = self.owner()
