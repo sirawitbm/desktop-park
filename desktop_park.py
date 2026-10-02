@@ -81,6 +81,8 @@ class App:
         self.board.closed.connect(self._board_closed)
         self.board.weather_changed.connect(self.set_weather)
         self.board.weather_auto.connect(self.set_weather_auto)
+        self.board.time_mode_changed.connect(self.set_time_mode)
+        self.board.show_sky_toggled.connect(self.set_show_sky)
         self.board.update_open.connect(self.open_update)
         self.board.update_later.connect(self.skip_update)
         area = screen.availableGeometry()
@@ -96,6 +98,8 @@ class App:
         self.set_locked(self.data["locked"])
         self.set_weather(self.data["weather"])
         self.set_weather_auto(self.data["weather_auto"])
+        self.board.set_time_mode(self.data["time_mode"])
+        self.board.set_show_sky(self.data["show_sky"])
         self.set_hidden(self.data["hidden"])
         self.board.show()
         screen.availableGeometryChanged.connect(self._screen_resized)
@@ -258,11 +262,13 @@ class App:
         self.data["time_mode"] = mode if mode in daycycle.MODES else "clock"
         for m, a in self.time_actions.items():
             a.setChecked(m == self.data["time_mode"])
+        self.board.set_time_mode(self.data["time_mode"])
         self.save_soon()
 
     def set_show_sky(self, on):
         self.data["show_sky"] = bool(on)
         self.sky_action.setChecked(self.data["show_sky"])
+        self.board.set_show_sky(self.data["show_sky"])
         self.weather.update()
         self.save_soon()
 

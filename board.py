@@ -19,6 +19,8 @@ from sprites import frame_image
 COLS = 5
 SLOT = 46
 ICON = QSize(18, 18)
+TIME_ICONS = {"clock": "clock", "day": "sun", "night": "moon"}
+TIME_TEXT = {"clock": "Clock", "day": "Day", "night": "Night"}
 
 # What the board says and shows in each look.
 LOOK = {
@@ -93,6 +95,8 @@ class Board(QWidget):
     clear_park = Signal()
     weather_changed = Signal(str)
     weather_auto = Signal(bool)
+    time_mode_changed = Signal(str)
+    show_sky_toggled = Signal(bool)
     update_open = Signal()
     update_later = Signal()
     moved = Signal()
@@ -141,6 +145,9 @@ class Board(QWidget):
         self.quick_weather = _square("clear", "Weather", name="quick", size=30)
         self.quick_weather.setPopupMode(QToolButton.InstantPopup)
         self.quick_weather.setMenu(self._weather_menu())
+        self.quick_time = _square("clock", "Time of day", name="quick", size=30)
+        self.quick_time.setPopupMode(QToolButton.InstantPopup)
+        self.quick_time.setMenu(self._time_menu())
         self.quick_hide = _square("eye", "Hide the park", name="quick", size=30, checkable=True)
         self.quick_hide.toggled.connect(self._hide)
         self.quick_lock = _square("lock", "Lock: clicks go through everything in the park",
@@ -152,7 +159,7 @@ class Board(QWidget):
         self.quick_update.clicked.connect(self.update_open.emit)
         self.quick_update.hide()
         q.addWidget(_sep())
-        for w in (self.quick_weather, self.quick_hide, self.quick_lock, self.quick_update):
+        for w in (self.quick_weather, self.quick_time, self.quick_hide, self.quick_lock, self.quick_update):
             q.addWidget(w)
         q.addWidget(_sep())
         self.quick.hide()
@@ -223,6 +230,24 @@ class Board(QWidget):
         wrow.addWidget(self.auto_btn, 1)
         body.addLayout(wrow)
 
+        self.time_label = QLabel(objectName="section")
+        body.addWidget(self.time_label)
+        trow = QHBoxLayout()
+        trow.setSpacing(4)
+        self.time_btns = {}
+        for mode in daycycle.MODES:
+            b = _button(TIME_TEXT[mode], daycycle.LABELS[mode], checkable=True)
+            b.setIcon(_ui_icon(TIME_ICONS[mode]))
+            b.setIconSize(ICON)
+            b.clicked.connect(lambda _=False, m=mode: self._pick_time(m))
+            trow.addWidget(b, 1)
+            self.time_btns[mode] = b
+        self.sky_btn = _square("sky", "Show the sun and moon crossing the sky", name="wbtn",
+                               size=34, checkable=True)
+        self.sky_btn.toggled.connect(self._sky)
+        trow.addWidget(self.sky_btn)
+        body.addLayout(trow)
+
         self.park_label = QLabel(objectName="section")
         body.addWidget(self.park_label)
         row = QHBoxLayout()
@@ -260,6 +285,7 @@ class Board(QWidget):
         self.draw_btn.setIcon(_ui_icon("pencil") if icons else QIcon())
         self.draw_btn.setIconSize(ICON)
         self.weather_label.setText("WEATHER" if not icons else "Weather")
+        self.time_label.setText("TIME OF DAY" if not icons else "Time of day")
         self.park_label.setText("PARK" if not icons else "Park")
         self.park_label.setVisible(icons)          # the original look had no "Park" heading
         self.clear_btn.setText(look["clear"])
@@ -280,6 +306,9 @@ class Board(QWidget):
         for b in self.weather_btns.values():
             b.setFixedHeight(34 if icons else 30)
         self.auto_btn.setFixedHeight(34 if icons else 30)
+        for b in self.time_btns.values():
+            b.setFixedHeight(34 if icons else 30)
+        self.sky_btn.setFixedSize(34 if icons else 30, 34 if icons else 30)
         self.draw_btn.setFixedHeight(34 if icons else 30)
         self.hint.setText(look["hint"])
         self.set_locked(self._locked)
@@ -401,6 +430,45 @@ class Board(QWidget):
             a.setChecked(k == kind)
         self.quick_weather.setIcon(_ui_icon(kind if kind in artmod.WEATHER_ICONS else "clear"))
         self.quick_weather.setToolTip("Weather: %s" % weathermod.LABELS.get(kind, kind))
+
+    # -- time of day -----------------------------------------------------------
+    def _time_menu(self):
+        menu = QMenu(self)
+        group = QActionGroup(menu)
+        self._time_actions = {}
+        for mode in daycycle.MODES:
+            a = menu.addAction(_ui_icon(TIME_ICONS[mode]), daycycle.LABELS[mode])
+            a.setCheckable(True)
+            group.addAction(a)
+            a.triggered.connect(lambda _=False, m=mode: self._pick_time(m))
+            self._time_actions[mode] = a
+        menu.addSeparator()
+        self._sky_action = menu.addAction(_ui_icon("sky"), "Show sun && moon")
+        self._sky_action.setCheckable(True)
+        self._sky_action.triggered.connect(self._sky)
+        return menu
+
+    def _pick_time(self, mode):
+        self.set_time_mode(mode)
+        self.time_mode_changed.emit(mode)
+
+    def set_time_mode(self, mode):
+        for m, b in self.time_btns.items():
+            b.setChecked(m == mode)
+        for m, a in self._time_actions.items():
+            a.setChecked(m == mode)
+        self.quick_time.setIcon(_ui_icon(TIME_ICONS.get(mode, "clock")))
+        self.quick_time.setToolTip("Time of day: %s" % daycycle.LABELS.get(mode, mode))
+
+    def _sky(self, on):
+        self.set_show_sky(on)
+        self.show_sky_toggled.emit(bool(on))
+
+    def set_show_sky(self, on):
+        for b in (self.sky_btn, self._sky_action):
+            b.blockSignals(True)
+            b.setChecked(bool(on))
+            b.blockSignals(False)
 
     def set_weather_auto(self, on):
         for b in (self.auto_btn, self._auto_action):

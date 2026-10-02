@@ -424,6 +424,39 @@ WEATHER_ICONS = {
 
 # Icons for the folded board's quick buttons (same palette as the weather ones).
 UI_ICONS = {
+    "clock": [
+        "..wwwww..",
+        ".w.....w.",
+        "w...y...w",
+        "w...y...w",
+        "w...yyy.w",
+        "w.......w",
+        "w.......w",
+        ".w.....w.",
+        "..wwwww..",
+    ],
+    "moon": [
+        "...wwww..",
+        "..ww.....",
+        ".ww......",
+        ".ww......",
+        ".ww......",
+        ".ww......",
+        ".ww......",
+        "..ww.....",
+        "...wwww..",
+    ],
+    "sky": [
+        "y.y......",
+        ".yyy.....",
+        "yyyyy....",
+        ".yyy.....",
+        "y.y...ww.",
+        ".....ww..",
+        ".....ww..",
+        ".....ww..",
+        "......ww.",
+    ],
     "pencil": [
         ".......pp",
         "......ypp",

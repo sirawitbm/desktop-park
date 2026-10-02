@@ -70,9 +70,10 @@ evening):
   real time, with a sun or moon next to it.
 
 It never darkens your screen - only the park itself changes. To see night any
-time, right-click the fish in the tray and pick **Time of day > Always night**
-(or **Always day**, or **Follow my clock**, the default). **Show sun & moon** in
-the same menu hides the sky if you'd rather not have it.
+time, use the **Time of day** buttons on the board: **Clock** (follow my clock,
+the default), **Day** or **Night**. The little sun-and-moon button next to them
+shows or hides the sky. The same choices are on the folded bar (the clock
+button) and in the tray menu.
 
 **Halloween:** a bat, a witch cat, jack-o'-lanterns, a spooky tree, a
 gravestone and a bubbling cauldron are on the board all year. In October
@@ -104,10 +105,11 @@ run it from source (below).
 - **Resize:** scroll the mouse wheel over a thing.
 - **Options:** right-click a thing to change how it moves, its size, turn it
   around, bring it to the front, copy, edit or remove it.
-- **Weather:** the buttons under WEATHER on the board: off (the grey cloud),
-  Sunny, Rain, Snow, Windy, and **Auto** to let it change by itself every few
-  minutes. Also in the tray menu and on the folded bar. Weather never
-  catches the mouse.
+- **Weather:** the buttons under WEATHER on the board: Off, Sunny, Rain,
+  Snow, Windy, and **Auto** to let it change by itself every few minutes.
+  Also in the tray menu and on the folded bar. Weather never catches the mouse.
+- **Time of day:** **Clock** follows your computer's clock; **Day** and
+  **Night** keep it that way. The sun-and-moon button shows or hides the sky.
 - **Two monitors?** Press **Screen** on the board (or **Screen** in the tray
   menu) and pick where the park lives. Everything keeps its place, pets on
   the ground stay on the ground, and the choice is remembered. If that

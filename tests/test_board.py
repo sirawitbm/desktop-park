@@ -181,5 +181,28 @@ class LookTests(unittest.TestCase):
         self.assertEqual(store.clean({"theme": "neon"})["theme"], "modern")
 
 
+@unittest.skipIf(QApplication is None, "PySide6 not installed")
+class TimeOfDayTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_board_and_folded_bar_stay_in_step(self):
+        import board
+        import sprites
+        b = board.Board(sprites.Library([]))
+        got = []
+        b.time_mode_changed.connect(lambda m: got.append(("time", m)))
+        b.show_sky_toggled.connect(lambda on: got.append(("sky", on)))
+        b.time_btns["night"].click()
+        self.assertTrue(b._time_actions["night"].isChecked())
+        self.assertFalse(b.time_btns["clock"].isChecked())
+        b._time_actions["day"].trigger()                     # from the folded bar's menu
+        self.assertTrue(b.time_btns["day"].isChecked())
+        b.sky_btn.click()
+        self.assertEqual(b._sky_action.isChecked(), b.sky_btn.isChecked())
+        self.assertEqual(got, [("time", "night"), ("time", "day"), ("sky", b.sky_btn.isChecked())])
+
+
 if __name__ == "__main__":
     unittest.main()
