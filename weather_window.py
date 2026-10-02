@@ -107,7 +107,7 @@ class WeatherWindow(QWidget):
         self._glow_cache = {}
         self._cloud_cache = {}
         self._bodies = {}               # (sun/moon, pixel size) -> picture
-        self._sky_ticks = 0
+        self._sky_elapsed = 0.0
         rng = random.Random(7)                  # the same sky every night
         self._stars = [(rng.random(), rng.random() * 0.36, rng.random(), rng.random() < 0.2)
                        for _ in range(STARS)]
@@ -126,22 +126,26 @@ class WeatherWindow(QWidget):
         winutil.no_activate(hwnd)
         winutil.click_through(hwnd, True)       # always: weather never takes clicks
 
+    def set_low_power(self, on):
+        self.timer.setInterval(100 if on else TICK_MS)
+
     def _tick(self):
         if not self.isVisible():
             return
+        dt = self.timer.interval() / 1000.0
         busy = self.weather.busy()
         if busy:
-            self.weather.step(TICK_MS / 1000.0)
+            self.weather.step(dt)
         elif self.weather.auto:
-            self.weather.step(TICK_MS / 1000.0)  # keep the auto clock running
+            self.weather.step(dt)  # keep the auto clock running
         if self.on_step:
             self.on_step(self.weather)
         if busy or self._was_busy:
             self.update()
         elif self.weather.sky:
-            self._sky_ticks += 1
-            if self._sky_ticks >= 40:          # the sun creeps along: redraw every 2 s
-                self._sky_ticks = 0
+            self._sky_elapsed += dt
+            if self._sky_elapsed >= 2.0:
+                self._sky_elapsed = 0.0
                 self.update()
         self._was_busy = busy
 

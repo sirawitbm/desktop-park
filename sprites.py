@@ -1,6 +1,8 @@
 """The picture library: built-in art plus the user's drawings, turned into
 images the windows can paint."""
 
+from collections import OrderedDict
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage, QPainter, QPixmap, QTransform
 
@@ -26,7 +28,10 @@ class Library:
         self.builtin = artmod.builtin_by_id()
         self.custom = {a["id"]: a for a in custom_art}
         self._images = {}       # art id -> [QImage per frame]
-        self._pixmaps = {}      # (art id, frame, scale, flip) -> QPixmap
+        self._pixmaps = OrderedDict()
+        self._pixmap_bytes = 0
+        self.cache_bytes = 48 * 1024 * 1024
+        self.cache_entries = 2000
 
     # -- lookups -------------------------------------------------------------
     def get(self, art_id):
@@ -56,24 +61,31 @@ class Library:
     def forget(self, art_id):
         self._images.pop(art_id, None)
         for key in [k for k in self._pixmaps if k[0] == art_id]:
-            del self._pixmaps[key]
+            self._pixmap_bytes -= self._cost(self._pixmaps.pop(key))
 
     # -- images --------------------------------------------------------------
     def images(self, art_id):
         if art_id not in self._images:
             picture = self.get(art_id)
-            self._images[art_id] = [frame_image(picture, f) for f in picture["frames"]] if picture else []
+            frames = (picture["frames"] + list(picture.get("poses", {}).values())) if picture else []
+            self._images[art_id] = [frame_image(picture, frame) for frame in frames]
         return self._images[art_id]
 
     def frame_count(self, art_id):
-        return max(1, len(self.images(art_id)))
+        picture = self.get(art_id)
+        return max(1, len(picture["frames"])) if picture else 1
+
+    def pose_frame(self, art_id, pose):
+        picture = self.get(art_id)
+        poses = list(picture.get("poses", {})) if picture else []
+        return len(picture["frames"]) + poses.index(pose) if pose in poses else None
 
     def pixmap(self, art_id, frame, scale, flip, shade=(0.0, 0.0)):
         """The picture at this size and facing. shade = (night, light) gives it
         the time-of-day tint (rounded with daycycle.bucket)."""
         if shade[0] > 0:
             key = (art_id, frame, scale, flip, shade)
-            pm = self._pixmaps.get(key)
+            pm = self._cached(key)
             if pm is None:
                 base = self.pixmap(art_id, frame, scale, flip)
                 if base is None:
@@ -87,7 +99,7 @@ class Library:
                 self._store(key, pm)
             return pm
         key = (art_id, frame, scale, flip)
-        pm = self._pixmaps.get(key)
+        pm = self._cached(key)
         if pm is None:
             imgs = self.images(art_id)
             if not imgs:
@@ -101,10 +113,29 @@ class Library:
             self._store(key, pm)
         return pm
 
+    @staticmethod
+    def _cost(pm):
+        return pm.width() * pm.height() * max(1, pm.depth() // 8)
+
+    def _cached(self, key):
+        pm = self._pixmaps.get(key)
+        if pm is not None:
+            self._pixmaps.move_to_end(key)
+        return pm
+
     def _store(self, key, pm):
-        if len(self._pixmaps) > 2000:
-            self._pixmaps.clear()
+        previous = self._pixmaps.pop(key, None)
+        if previous is not None:
+            self._pixmap_bytes -= self._cost(previous)
+        cost = self._cost(pm)
+        if cost > self.cache_bytes:
+            return
+        while self._pixmaps and (len(self._pixmaps) >= self.cache_entries
+                                 or self._pixmap_bytes + cost > self.cache_bytes):
+            _, old = self._pixmaps.popitem(last=False)
+            self._pixmap_bytes -= self._cost(old)
         self._pixmaps[key] = pm
+        self._pixmap_bytes += cost
 
     def opaque(self, art_id, frame, ax, ay):
         imgs = self.images(art_id)

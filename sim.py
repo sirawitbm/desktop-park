@@ -77,6 +77,14 @@ class Thing:
     def moving(self):
         return abs(self.vx) > 1 or abs(self.vy) > 1
 
+    def pose(self):
+        if self.reaction == "sleep":
+            return "sleep"
+        if (self.is_pet and not self.moving() and not self.dragging and not self.reaction
+                and self.age % 5.5 < 0.16):
+            return "blink"
+        return None
+
     def frame_index(self, n_frames, is_pet):
         if n_frames <= 1 or self.reaction == "sleep":
             return 0

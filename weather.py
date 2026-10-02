@@ -215,7 +215,7 @@ class Weather:
             if p[1] > self.width + 150 or p[1] < -0.4 * self.width - 150:
                 continue
             alive.append(p)
-        self.particles = alive
+        self.particles = alive[:MAX_PARTICLES]
 
     # -- snow pile -------------------------------------------------------------
     def snow_at(self, x):

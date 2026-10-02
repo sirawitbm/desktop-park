@@ -4,11 +4,11 @@ a slim bar of quick controls that fits inside the Windows taskbar.
 
 It comes in two looks (ui_style.py), switched with apply_theme()."""
 
-from PySide6.QtCore import QPoint, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QActionGroup, QGuiApplication, QIcon, QPixmap
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QMenu,
                                QPushButton, QScrollArea, QSizePolicy, QToolButton,
-                               QVBoxLayout, QWidget)
+                               QStyle, QVBoxLayout, QWidget)
 
 import art as artmod
 import daycycle
@@ -85,6 +85,47 @@ def _sep():
     return s
 
 
+class PictureButton(QToolButton):
+    def __init__(self, library, picture):
+        super().__init__(objectName="thumb")
+        self.library = library
+        self.picture = picture
+        self._preview = None
+
+    def event(self, event):
+        if event.type() == QEvent.ToolTip:
+            self.preview()
+            self._preview.adjustSize()
+            area = self.screen().availableGeometry()
+            point = event.globalPos() + QPoint(14, 14)
+            x = min(max(area.left(), point.x()), area.right() + 1 - self._preview.width())
+            y = min(max(area.top(), point.y()), area.bottom() + 1 - self._preview.height())
+            self._preview.move(x, y)
+            self._preview.show()
+            return True
+        if event.type() == QEvent.Leave and self._preview is not None:
+            self._preview.hide()
+        return super().event(event)
+
+    def preview(self):
+        if self._preview is None:
+            self._preview = QFrame(self, Qt.ToolTip)
+            self._preview.setObjectName("board")
+            layout = QVBoxLayout(self._preview)
+            image = QLabel()
+            image.setFixedSize(96, 96)
+            image.setAlignment(Qt.AlignCenter)
+            image.setPixmap(self.library.thumbnail(self.picture["id"], 96, max_scale=6))
+            name = QLabel(self.picture["name"])
+            name.setTextFormat(Qt.PlainText)
+            name.setWordWrap(True)
+            name.setFixedWidth(120)
+            name.setAlignment(Qt.AlignCenter)
+            layout.addWidget(image, 0, Qt.AlignCenter)
+            layout.addWidget(name)
+        return self._preview
+
+
 class Board(QWidget):
     add_art = Signal(str)
     draw_new = Signal()
@@ -99,6 +140,15 @@ class Board(QWidget):
     show_sky_toggled = Signal(bool)
     update_open = Signal()
     update_later = Signal()
+    retry_save = Signal()
+    undo_park = Signal()
+    preset_save = Signal()
+    preset_load = Signal(str)
+    preset_rename = Signal(str)
+    preset_delete = Signal(str)
+    import_art = Signal()
+    export_art = Signal(str)
+    low_power_toggled = Signal(bool)
     moved = Signal()
     closed = Signal()
 
@@ -111,6 +161,7 @@ class Board(QWidget):
         self._drag = None
         self.collapsed = False
         self._update_version = None
+        self._save_error = None
         self._locked = self._hidden = False
         self.look = LOOK[ui_style.current()]
 
@@ -158,13 +209,25 @@ class Board(QWidget):
         self.quick_update.setCursor(Qt.PointingHandCursor)
         self.quick_update.clicked.connect(self.update_open.emit)
         self.quick_update.hide()
+        self.quick_save = QToolButton(text="!", objectName="quick")
+        self.quick_save.setFixedSize(30, 30)
+        self.quick_save.clicked.connect(self.retry_save.emit)
+        self.quick_save.hide()
         q.addWidget(_sep())
-        for w in (self.quick_weather, self.quick_time, self.quick_hide, self.quick_lock, self.quick_update):
+        for w in (self.quick_weather, self.quick_time, self.quick_hide, self.quick_lock,
+              self.quick_update, self.quick_save):
             q.addWidget(w)
         q.addWidget(_sep())
         self.quick.hide()
         head.addWidget(self.quick)
         head.addStretch(1)
+        self.undo_btn = QToolButton(objectName="head")
+        self.undo_btn.setIcon(self.style().standardIcon(QStyle.SP_ArrowBack))
+        self.undo_btn.setFixedSize(22, 22)
+        self.undo_btn.setToolTip("Undo last park edit")
+        self.undo_btn.setEnabled(False)
+        self.undo_btn.clicked.connect(self.undo_park.emit)
+        head.addWidget(self.undo_btn)
         self.fold_btn = _square(None, "Fold the board")
         self.fold_btn.clicked.connect(self.toggle_collapsed)
         self.close_btn = _square(None, "Hide the board (bring it back from the tray icon)", name="close")
@@ -189,6 +252,18 @@ class Board(QWidget):
         self.update_bar.hide()
         lay.addWidget(self.update_bar)
 
+        self.save_bar = QFrame(objectName="savewarning")
+        save_row = QHBoxLayout(self.save_bar)
+        save_row.setContentsMargins(8, 4, 4, 4)
+        self.save_text = QLabel("Changes not saved", objectName="saveerror")
+        self.save_text.setWordWrap(True)
+        retry = _button("Retry", "Try saving the park again")
+        retry.clicked.connect(self.retry_save.emit)
+        save_row.addWidget(self.save_text, 1)
+        save_row.addWidget(retry)
+        self.save_bar.hide()
+        lay.addWidget(self.save_bar)
+
         # -- body ------------------------------------------------------------------
         self.body = QWidget()
         body = QVBoxLayout(self.body)
@@ -209,6 +284,32 @@ class Board(QWidget):
         self.draw_btn = _button("", "Draw a new pet or decoration", name="draw")
         self.draw_btn.clicked.connect(self.draw_new.emit)
         body.addWidget(self.draw_btn)
+
+        utility = QHBoxLayout()
+        utility.setSpacing(4)
+        self.presets_btn = QToolButton(text="Parks")
+        self.presets_btn.setIcon(self.style().standardIcon(QStyle.SP_DirIcon))
+        self.presets_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.presets_btn.setToolTip("Saved park arrangements")
+        self.presets_btn.setPopupMode(QToolButton.InstantPopup)
+        self.presets_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.presets_btn.setMenu(QMenu("Saved parks", self))
+        self.set_presets([])
+        self.import_btn = QToolButton()
+        self.import_btn.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.import_btn.setToolTip("Import a drawing")
+        self.import_btn.setFixedSize(30, 30)
+        self.import_btn.clicked.connect(self.import_art.emit)
+        self.power_btn = QToolButton()
+        self.power_btn.setIcon(_ui_icon("eco"))
+        self.power_btn.setToolTip("Low power: fewer animation and weather updates")
+        self.power_btn.setCheckable(True)
+        self.power_btn.setFixedSize(30, 30)
+        self.power_btn.toggled.connect(self.low_power_toggled.emit)
+        utility.addWidget(self.presets_btn, 1)
+        utility.addWidget(self.import_btn)
+        utility.addWidget(self.power_btn)
+        body.addLayout(utility)
 
         self.weather_label = QLabel(objectName="section")
         body.addWidget(self.weather_label)
@@ -351,7 +452,7 @@ class Board(QWidget):
         g.setSpacing(4)
         size = self.look["slot_icon"]
         for i, picture in enumerate(pictures):
-            b = QToolButton(objectName="thumb")
+            b = PictureButton(self.library, picture)
             b.setIcon(QIcon(self.library.thumbnail(picture["id"], size, max_scale=2, bottom=True)))
             b.setIconSize(QSize(size, size))
             b.setFixedSize(SLOT, SLOT)
@@ -373,7 +474,21 @@ class Board(QWidget):
             menu.addAction("Delete drawing", lambda: self.delete_art.emit(art_id))
         else:
             menu.addAction("Draw my own version", lambda: self.edit_art.emit(art_id))
+        menu.addAction("Export drawing...", lambda: self.export_art.emit(art_id))
         menu.exec(pos)
+
+    def set_presets(self, presets):
+        menu = self.presets_btn.menu()
+        menu.clear()
+        menu.addAction("Save current park...", self.preset_save.emit)
+        if presets:
+            menu.addSeparator()
+        for preset in presets:
+            name = preset["name"]
+            item = menu.addMenu(name.replace("&", "&&"))
+            item.addAction("Load", lambda _=False, name=name: self.preset_load.emit(name))
+            item.addAction("Rename...", lambda _=False, name=name: self.preset_rename.emit(name))
+            item.addAction("Delete...", lambda _=False, name=name: self.preset_delete.emit(name))
 
     # -- buttons -------------------------------------------------------------
     # Lock and hide each have two buttons (board + folded bar) kept in step.
@@ -489,6 +604,28 @@ class Board(QWidget):
         # big bar on the open board, a small "New!" button on the folded bar
         self.update_bar.setVisible(bool(version) and not self.collapsed)
         self.quick_update.setVisible(bool(version) and self.collapsed)
+        self.save_bar.setVisible(bool(self._save_error) and not self.collapsed)
+        self.quick_save.setVisible(bool(self._save_error) and self.collapsed)
+
+    def set_save_error(self, error):
+        self._save_error = error
+        self.save_text.setToolTip(error or "")
+        self.quick_save.setToolTip("Changes not saved - click to retry\n" + (error or ""))
+        self._keep_bottom(self._show_update_parts)
+
+    def set_undo_available(self, available):
+        self.undo_btn.setEnabled(available)
+
+    def set_low_power(self, on):
+        self.power_btn.blockSignals(True)
+        self.power_btn.setChecked(on)
+        self.power_btn.blockSignals(False)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
+            self.undo_park.emit()
+        else:
+            super().keyPressEvent(event)
 
     def set_screen_menu(self, menu, show):
         """The app hands over the menu listing the monitors."""

@@ -23,6 +23,8 @@ DRAG_START_PX = 4
 class ParkWindow(QWidget):
     changed = Signal()            # something the user did needs saving
     edit_art = Signal(str)        # "Edit picture" chosen for this art id
+    undo_changed = Signal(bool)
+    scene_restored = Signal(object)
 
     def __init__(self, library):
         super().__init__(None, Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint
@@ -39,6 +41,7 @@ class ParkWindow(QWidget):
         self._press = None        # (thing, press pos, offset)
         self._dragged = False
         self._next_uid = 1
+        self._undo = []
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
         self.timer.start(TICK_MS)
@@ -63,6 +66,9 @@ class ParkWindow(QWidget):
         self.locked = locked
         winutil.click_through(int(self.winId()), locked)
         self.setCursor(Qt.ArrowCursor)
+
+    def set_low_power(self, on):
+        self.timer.setInterval(67 if on else TICK_MS)
 
     # -- things --------------------------------------------------------------
     def new_uid(self):
@@ -102,6 +108,7 @@ class ParkWindow(QWidget):
         t = self.make_thing(art_id, scale=scale)
         if t is None:
             return None
+        self.checkpoint()
         t.x, t.y = self.world.drop_spot(t)
         self.world.things.append(t)
         self.world.spawn("sparkle", t.x + t.w / 2, t.y, life=0.8)
@@ -109,7 +116,13 @@ class ParkWindow(QWidget):
         self.changed.emit()
         return t
 
-    def load_things(self, objects):
+    def load_things(self, objects, clear_history=True):
+        if clear_history:
+            self._undo.clear()
+            self.undo_changed.emit(False)
+        self._press = None
+        self._dragged = False
+        self.world.particles = []
         self.world.things = []
         for o in objects:
             t = self.make_thing(o["art"], uid=o["uid"], x=o["x"], y=o["y"],
@@ -137,6 +150,7 @@ class ParkWindow(QWidget):
         self.update()
 
     def clear(self):
+        self.checkpoint()
         self.world.things = []
         self.world.particles = []
         self.update()
@@ -145,15 +159,47 @@ class ParkWindow(QWidget):
     def snapshot(self):
         return [t.to_dict() for t in self.world.things]
 
+    def checkpoint(self, settings=None):
+        self._undo.append((self.snapshot(), self.world.width, self.world.height, settings))
+        self._undo = self._undo[-40:]
+        self.undo_changed.emit(True)
+
+    def undo(self):
+        if not self._undo:
+            return
+        objects, width, height, settings = self._undo.pop()
+        self.restore_scene(objects, width, height)
+        if settings is not None:
+            self.scene_restored.emit(settings)
+        self.undo_changed.emit(bool(self._undo))
+        self.changed.emit()
+
+    def restore_scene(self, objects, width, height):
+        target_width, target_height = self.world.width, self.world.height
+        self.world.width, self.world.height = width, height
+        self.load_things(objects, clear_history=False)
+        self.world.relocate(target_width, target_height)
+        self.update()
+
     # -- drawing -------------------------------------------------------------
     def _frame(self, t):
         picture = self.library.get(t.art_id)
         is_pet = bool(picture and picture.get("kind") == "pet")
+        pose = self.library.pose_frame(t.art_id, t.pose())
+        if pose is not None:
+            return pose
         return t.frame_index(self.library.frame_count(t.art_id), is_pet)
 
     def _rect(self, t):
         x, y, w, h = t.rect()
         return QRect(int(x), int(y), int(w), int(h))
+
+    def _visual_rect(self, t):
+        rect = self._rect(t)
+        shadow = self._shadow_rect(t)
+        if shadow is not None:
+            rect = rect.united(shadow)
+        return rect.adjusted(-1, -1, 1, 1)
 
     def _particle(self, kind):
         """Pixmap for a reaction picture, drawn 3x size."""
@@ -190,10 +236,10 @@ class ParkWindow(QWidget):
         shadows_before = {t.uid: self._shadow_rect(t) for t in self.world.things}
         frames = {t.uid: self._frame(t) for t in self.world.things}
         parts_before = [self._particle_rect(q) for q in self.world.particles]
-        self.world.step(TICK_MS / 1000.0)
+        self.world.step(self.timer.interval() / 1000.0)
         # the tint changed (dusk, dawn, a lamp added or moved): repaint everything
         key = (daycycle.bucket(self.world.night, 0)[0],
-               tuple((round(x / 16), round(y / 16)) for x, y, _ in self.world.lights))
+             tuple(self.world.lights))
         if key != self._shade_key:
             self._shade_key = key
             self.update()
@@ -286,6 +332,8 @@ class ParkWindow(QWidget):
         if self._press:
             t, start, offset = self._press
             if not self._dragged and (pos - start).manhattanLength() >= DRAG_START_PX:
+                self.checkpoint()
+                self.update(self._visual_rect(t))
                 self._dragged = True
                 t.dragging = True
                 # bring to front while carrying it
@@ -293,10 +341,10 @@ class ParkWindow(QWidget):
                 self.world.things.append(t)
                 self.setCursor(Qt.ClosedHandCursor)
             if self._dragged:
-                old = self._rect(t)
+                old = self._visual_rect(t)
                 t.x, t.y = pos.x() - offset.x(), pos.y() - offset.y()
                 self.world.clamp(t)
-                self.update(QRegion(old.adjusted(-1, -1, 1, 1)) + self._rect(t).adjusted(-1, -1, 1, 1))
+                self.update(QRegion(old) + self._visual_rect(t))
             return
         self.setCursor(Qt.OpenHandCursor if self.thing_under(pos) else Qt.ArrowCursor)
 
@@ -307,6 +355,7 @@ class ParkWindow(QWidget):
         self._press = None
         if self._dragged:
             self.world.released(t)
+            self.update(self._visual_rect(t))
             self.setCursor(Qt.OpenHandCursor)
             self.changed.emit()
         elif self.is_pet(t):
@@ -326,12 +375,13 @@ class ParkWindow(QWidget):
         scale = max(MIN_SCALE, min(MAX_SCALE, scale))
         if scale == t.scale:
             return
-        old = self._rect(t)
+        self.checkpoint()
+        old = self._visual_rect(t)
         bottom, cx = t.y + t.h, t.x + t.w / 2
         t.scale = scale
         t.x, t.y = cx - t.w / 2, bottom - t.h      # grow from the feet
         self.world.clamp(t)
-        self.update(QRegion(old) + self._rect(t))
+        self.update(QRegion(old) + self._visual_rect(t))
         self.changed.emit()
 
     # -- right-click menu -----------------------------------------------------
@@ -369,40 +419,54 @@ class ParkWindow(QWidget):
         menu.addAction(edit_label, lambda: self.edit_art.emit(t.art_id))
         menu.addSeparator()
         menu.addAction("Remove", lambda: self._remove(t))
+        menu.addSeparator()
+        undo = menu.addAction("Undo last park edit", self.undo)
+        undo.setEnabled(bool(self._undo))
         menu.exec(global_pos)
 
     def _set_behavior(self, t, key):
+        if key == t.behavior:
+            return
+        self.checkpoint()
+        old = self._visual_rect(t)
         t.behavior = key
         t.state, t.timer, t.target = "idle", 0.3, None
         t.vx = t.vy = 0.0
+        self.update(QRegion(old) + self._visual_rect(t))
         self.changed.emit()
 
     def _flip(self, t):
+        self.checkpoint()
+        old = self._visual_rect(t)
         t.flip = not t.flip
-        self.update(self._rect(t))
+        self.update(QRegion(old) + self._visual_rect(t))
         self.changed.emit()
 
     def _order(self, t, front):
+        self.checkpoint()
         self.world.things.remove(t)
         if front:
             self.world.things.append(t)
         else:
             self.world.things.insert(0, t)
-        self.update(self._rect(t))
+        self.update(self._visual_rect(t))
         self.changed.emit()
 
     def _duplicate(self, t):
+        self.checkpoint()
         c = self.make_thing(t.art_id, x=min(t.x + 20, self.world.width - t.w), y=t.y,
                             scale=t.scale, behavior=t.behavior, flip=t.flip)
         self.world.things.append(c)
-        self.update(self._rect(c))
+        self.update(self._visual_rect(c))
         self.changed.emit()
 
     def _remove(self, t):
         if t in self.world.things:
+            self.checkpoint()
+            old = self._visual_rect(t)
             self.world.things.remove(t)
-        self.update(self._rect(t))
-        self.changed.emit()
+            self.update(old)
+            self.changed.emit()
 
 
 def _outlined(img, colour=QColor(26, 28, 44)):

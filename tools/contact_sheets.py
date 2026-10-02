@@ -10,6 +10,8 @@ import os
 import sys
 from pathlib import Path
 
+from PIL import Image
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -37,6 +39,37 @@ def sheet(items, path, scale=5, cols=8, bg="#5a6f94"):
     out.save(str(path))
 
 
+def animation(library, path):
+    pictures = [library.get(art_id) for art_id in ("cat", "dog", "duck", "bunny")]
+    frames = []
+    durations = [100] * 12 + [900, 160, 700, 1800]
+    for index in range(len(durations)):
+        canvas = QImage(640, 150, QImage.Format_RGBA8888)
+        canvas.fill(QColor("#5a6f94"))
+        painter = QPainter(canvas)
+        painter.setPen(QColor("white"))
+        font = QFont("Segoe UI")
+        font.setPixelSize(14)
+        painter.setFont(font)
+        for column, picture in enumerate(pictures):
+            if index < 12:
+                frame = index % len(picture["frames"])
+            elif index == 13:
+                frame = library.pose_frame(picture["id"], "blink")
+            elif index == 15:
+                frame = library.pose_frame(picture["id"], "sleep")
+            else:
+                frame = 0
+            pixmap = library.pixmap(picture["id"], frame, 6, False)
+            painter.drawPixmap(column * 160 + (160 - pixmap.width()) // 2, 115 - pixmap.height(), pixmap)
+            painter.drawText(column * 160 + 12, 138, picture["name"])
+        painter.end()
+        frames.append(Image.frombytes("RGBA", (canvas.width(), canvas.height()),
+                                      canvas.bits().tobytes()))
+    frames[0].save(path, save_all=True, append_images=frames[1:], duration=durations,
+                   loop=0, disposal=2)
+
+
 def main(out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -44,16 +77,21 @@ def main(out_dir):
     import art
     import park
     import sprites
+    import ui_style
     import weather_window
 
+    ui_style.install(app)
     lib = sprites.Library([])
 
     def frames(a):
-        return [("%s %d" % (a["id"], i + 1), sprites.frame_image(a, fr)) for i, fr in enumerate(a["frames"])]
+        items = [("%s %d" % (a["id"], i + 1), sprites.frame_image(a, fr)) for i, fr in enumerate(a["frames"])]
+        return items + [(a["id"] + " " + pose, sprites.frame_image(a, frame))
+                        for pose, frame in a.get("poses", {}).items()]
 
     allart = list(lib.builtin.values())
     sheet([x for a in allart if a["kind"] == "pet" for x in frames(a)], out / "1_pets.png", scale=5)
     sheet([x for a in allart if a["kind"] != "pet" for x in frames(a)], out / "2_decor.png", scale=4)
+    animation(lib, out / "animation.gif")
     pic = lambda pal, rows: sprites.frame_image({"palette": pal, "frames": [rows]}, rows)   # noqa: E731
     items = [(k, park._outlined(pic(pal, rows))) for k, (pal, rows) in art.PARTICLES.items()]
     items += [("w:" + k, pic(art.WEATHER_ICON_PALETTE, v)) for k, v in art.WEATHER_ICONS.items()]

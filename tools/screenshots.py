@@ -96,16 +96,22 @@ def main(out_dir="docs"):
     for t in pk.world.things:
         t.vx = t.vy = 0
 
-    def hero():
+    def hero(background="dark"):
         img = QImage(W, H, QImage.Format_ARGB32)
         p = QPainter(img)
         g = QLinearGradient(0, 0, 0, H)
-        g.setColorAt(0, QColor("#1b2133"))
-        g.setColorAt(1, QColor("#2c3550"))
+        g.setColorAt(0, QColor("#1b2133" if background == "dark" else "#f4f6f8"))
+        g.setColorAt(1, QColor("#2c3550" if background == "dark" else "#e0e5eb"))
         p.fillRect(img.rect(), g)
+        if background == "busy":
+            for x in range(0, W, 240):
+                p.fillRect(x + 12, 24, 210, H - 24, QColor("#ffffff"))
+                for y in range(44, H, 18):
+                    p.fillRect(x + 24, y, 120 + (y % 5) * 12, 4, QColor("#9aa7b6"))
+                    p.fillRect(x + 24, y + 7, 160, 3, QColor("#d0d8e1"))
         p.drawPixmap(0, 0, pk.grab())
         p.end()
-        img.save(str(out / "park.png"))
+        img.save(str(out / ("park.png" if background == "dark" else "park-" + background + ".png")))
 
     def boards():
         app.board.set_screen_menu(QMenu(), True)
@@ -123,6 +129,14 @@ def main(out_dir="docs"):
         p.drawImage(a.width() + 24, 0, b)
         p.end()
         pair.save(str(out / "looks.png"))
+        from board import PictureButton
+        button = next(button for button in app.board.findChildren(PictureButton)
+                  if button.picture["id"] == "snail")
+        button.preview().grab().save(str(out / "hover.png"))
+        app.board.set_save_error("Disk full")
+        settle(qapp)
+        app.board.grab().save(str(out / "save-warning.png"))
+        app.board.set_save_error(None)
         # the folded bar in both looks, drawn 2x on a taskbar-coloured strip
         bars = []
         for theme in ui_style.THEMES:
@@ -160,6 +174,8 @@ def main(out_dir="docs"):
 
     def run():
         hero()
+        hero("light")
+        hero("busy")
         boards()
         editor()
 

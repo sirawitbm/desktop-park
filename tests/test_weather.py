@@ -34,7 +34,16 @@ class WeatherTests(unittest.TestCase):
         run(w, 10)
         kinds = {p[0] for p in w.particles}
         self.assertIn("splash", kinds)
-        self.assertLessEqual(len(w.particles), MAX_PARTICLES + 2)
+        self.assertLessEqual(len(w.particles), MAX_PARTICLES)
+
+    def test_4k_rain_and_splashes_respect_the_particle_budget(self):
+        weather = Weather(3840, 2080)
+        weather.set_kind("rain")
+        rng = random.Random(7)
+        for _ in range(400):
+            weather.step(0.05, rng)
+            self.assertLessEqual(len(weather.particles), MAX_PARTICLES)
+        self.assertIn("splash", {particle[0] for particle in weather.particles})
 
     def test_snow_piles_up_then_melts(self):
         w = Weather(400, 300)

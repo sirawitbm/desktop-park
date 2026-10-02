@@ -101,7 +101,8 @@ PARTICLES = {
 # Icons for the weather buttons on the board.
 WEATHER_ICON_PALETTE = {"y": "#ffcd4f", "Y": "#fff1a8", "w": "#f4f4f4",
                         "S": "#94b0c2", "c": "#41a6f6", "C": "#73eff7",
-                        "k": "#1a1c2c", "p": "#ff8a9a", "e": "#e8c48c", "r": "#b13e53"}
+                        "k": "#1a1c2c", "p": "#ff8a9a", "e": "#e8c48c", "r": "#b13e53",
+                        "G": "#38b764", "l": "#a7f070"}
 WEATHER_ICONS = {
     "clear": [
         "..SSSSS..",
@@ -162,6 +163,17 @@ WEATHER_ICONS = {
 
 # Icons for the folded board's quick buttons (same palette as the weather ones).
 UI_ICONS = {
+    "eco": [
+        "......GG.",
+        "....GllG.",
+        "...GlllG.",
+        "..GllGlG.",
+        ".GllGllG.",
+        ".GlGllG..",
+        ".GGllG...",
+        "..GGG....",
+        ".G.......",
+    ],
     "day": [
         "....y....",
         ".y.....y.",
@@ -312,7 +324,7 @@ def builtin_by_id():
     return {a["id"]: dict(a, builtin=True) for a in BUILTIN}
 
 
-from art_pack import GLOWS, HALLOWEEN, PACK  # noqa: E402  (the bigger shared-palette set)
+from art_pack import GLOWS, HALLOWEEN, PACK, POSES, WALKS  # noqa: E402  (the bigger shared-palette set)
 
 BUILTIN += PACK + HALLOWEEN
 for _a in BUILTIN:
@@ -320,6 +332,10 @@ for _a in BUILTIN:
         _a["frames"] = REDRAWN[_a["id"]]
     if _a["id"] in GLOWS:
         _a["glow"] = GLOWS[_a["id"]]
+    if _a["id"] in WALKS:
+        _a["frames"] = WALKS[_a["id"]]
+    if _a["id"] in POSES:
+        _a["poses"] = POSES[_a["id"]]
 
 
 # -- the clock decoration: shows the real time ---------------------------------

@@ -6,6 +6,7 @@
 """
 
 import json
+import math
 import os
 import sys
 
@@ -32,10 +33,10 @@ def park_file():
 
 
 def empty():
-    return {"version": 1, "custom_art": [], "objects": [], "board": {},
+    return {"version": 1, "custom_art": [], "objects": [], "presets": [], "board": {},
             "locked": False, "hidden": False, "seeded": False,
             "weather": "clear", "weather_auto": False, "skip_update": "", "screen": "", "theme": "modern",
-            "time_mode": "clock", "show_sky": True}
+            "time_mode": "clock", "show_sky": True, "low_power": False}
 
 
 def load(path=None):
@@ -64,7 +65,7 @@ def save(data, path=None):
 
 
 def _num(v, default=0):
-    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else default
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else default
 
 
 def clean_art(a):
@@ -77,13 +78,20 @@ def clean_art(a):
         return None
     palette = {k: v for k, v in palette.items()
                if isinstance(k, str) and len(k) == 1 and k in PIXEL_CHARS
-               and isinstance(v, str) and v.startswith("#") and len(v) == 7}
+               and isinstance(v, str) and v.startswith("#") and len(v) == 7
+               and all(ch in "0123456789abcdefABCDEF" for ch in v[1:])}
     good = []
     for fr in frames[:8]:
         if isinstance(fr, list) and fr and all(isinstance(r, str) for r in fr):
             good.append([r[:64] for r in fr[:64]])
     if not good:
         return None
+    width = max((len(row) for row in good[0]), default=0)
+    height = len(good[0])
+    if not width:
+        return None
+    good = [["".join(ch if ch in palette else "." for ch in row[:width]).ljust(width, ".")
+             for row in (frame + [""] * height)[:height]] for frame in good]
     behavior = a.get("behavior") if a.get("behavior") in BEHAVIORS else "stay"
     return {"id": a["id"], "name": str(a.get("name") or "My drawing")[:40],
             "kind": "pet" if a.get("kind") == "pet" else "deco",
@@ -94,9 +102,11 @@ def clean(raw):
     data = empty()
     if not isinstance(raw, dict):
         return data
-    data["custom_art"] = [a for a in map(clean_art, raw.get("custom_art") or []) if a]
+    drawings = raw.get("custom_art")
+    data["custom_art"] = [a for a in map(clean_art, drawings if isinstance(drawings, list) else []) if a]
     objs = []
-    for o in raw.get("objects") or []:
+    objects = raw.get("objects")
+    for o in objects if isinstance(objects, list) else []:
         if not isinstance(o, dict) or not isinstance(o.get("art"), str):
             continue
         objs.append({
@@ -121,7 +131,48 @@ def clean(raw):
         data["screen"] = raw["screen"][:100]
     if isinstance(raw.get("skip_update"), str):
         data["skip_update"] = raw["skip_update"][:20]
-    for key in ("locked", "hidden", "seeded", "weather_auto"):
+    for key in ("locked", "hidden", "seeded", "weather_auto", "low_power"):
         data[key] = raw.get(key) is True
     data["show_sky"] = raw.get("show_sky") is not False          # on unless turned off
+    presets = raw.get("presets")
+    names = set()
+    for preset in presets[:32] if isinstance(presets, list) else []:
+        preset = clean_preset(preset)
+        if preset and preset["name"].casefold() not in names:
+            names.add(preset["name"].casefold())
+            data["presets"].append(preset)
     return data
+
+
+def clean_preset(raw):
+    if not isinstance(raw, dict) or not isinstance(raw.get("name"), str):
+        return None
+    name = raw["name"].strip()[:40]
+    if not name:
+        return None
+    keys = ("objects", "weather", "weather_auto", "time_mode", "show_sky")
+    state = clean({key: raw[key] for key in keys if key in raw})
+    return {"name": name, "width": int(min(32768, max(1, _num(raw.get("width"), 1920)))),
+            "height": int(min(32768, max(1, _num(raw.get("height"), 1040)))),
+            **{key: state[key] for key in keys}}
+
+
+def export_drawing(picture, path):
+    picture = clean_art(picture)
+    if picture is None:
+        raise ValueError("This drawing has no valid frames.")
+    save({"format": "desktop-park-drawing", "version": 1, "picture": picture}, path)
+
+
+def import_drawing(path):
+    if os.path.getsize(path) > 1024 * 1024:
+        raise ValueError("Drawing files must be smaller than 1 MB.")
+    with open(path, encoding="utf-8") as source:
+        raw = json.load(source)
+    if (not isinstance(raw, dict) or raw.get("format") != "desktop-park-drawing"
+            or raw.get("version") != 1):
+        raise ValueError("This is not a supported Desktop Park drawing file.")
+    picture = clean_art(raw.get("picture"))
+    if picture is None:
+        raise ValueError("This file contains no valid drawing.")
+    return picture
