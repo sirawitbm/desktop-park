@@ -108,11 +108,11 @@ class CloudTests(unittest.TestCase):
         self.assertEqual(w.cover, 0.0)
         w.set_kind("rain")
         run(w, 15)
-        self.assertGreater(w.cover, 0.95)
+        self.assertGreater(w.cover, 0.5)
         self.assertGreater(w.gloom, 0.9)
         w.set_kind("wind")
         run(w, 15)
-        self.assertTrue(0.3 < w.cover < 0.5)
+        self.assertTrue(0.15 < w.cover < 0.3)
         self.assertLess(w.gloom, 0.1)
 
     def test_how_many_clouds_show(self):

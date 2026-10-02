@@ -13,7 +13,7 @@ LABELS = {"clear": "Clear", "sun": "Light rays", "rain": "Rain", "snow": "Snow",
 MAX_PARTICLES = 700
 FIREFLIES = 26           # at most this many on a 1920-pixel-wide screen
 # How cloudy each weather is (0 clear .. 1 overcast), and how dark the clouds are.
-CLOUD_COVER = {"clear": 0.0, "sun": 0.0, "rain": 1.0, "snow": 0.85, "wind": 0.35}
+CLOUD_COVER = {"clear": 0.0, "sun": 0.0, "rain": 0.55, "snow": 0.45, "wind": 0.2}
 CLOUD_GLOOM = {"clear": 0.0, "sun": 0.0, "rain": 1.0, "snow": 0.35, "wind": 0.0}
 CLOUD_BAND = (-0.02, 0.11)  # clouds float in this slice of the screen height (top)
 SNOW_CELL = 4            # snow piles up in columns this many pixels wide
