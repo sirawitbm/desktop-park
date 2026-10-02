@@ -32,6 +32,9 @@ def _mix(a, b, t):
     return tuple(int(x + (y - x) * t) for x, y in zip(a, b))
 RAY = (255, 208, 96)              # sunbeams
 RAY_MOON = (196, 214, 255)        # moonbeams
+# The light-ray beams: (angle from the middle of the fan, half-width), radians.
+BEAMS = ((-0.72, 0.03), (-0.58, 0.045), (-0.44, 0.03), (-0.31, 0.055), (-0.17, 0.035),
+         (-0.03, 0.06), (0.11, 0.03), (0.24, 0.05), (0.38, 0.035), (0.52, 0.05), (0.67, 0.03))
 FIREFLY = QColor("#e4ff5c")
 MOON_LIGHT = QColor("#f4efcf")
 MOON_SHADE = QColor("#c9c09a")
@@ -304,11 +307,10 @@ class WeatherWindow(QWidget):
         else:
             ox, oy = -width * 0.08, -height * 0.25
         colour = _mix(RAY, RAY_MOON, w.night)
-        strength = 0.11 - 0.025 * w.night
+        strength = 0.15 - 0.03 * w.night
         reach = math.hypot(width, height) * 1.2
         base = math.atan2(height * 0.9 - oy, width / 2 - ox)     # aim at the park
-        for i, (angle, spread) in enumerate(((-0.34, 0.05), (-0.17, 0.035), (0.0, 0.06),
-                                             (0.17, 0.03), (0.34, 0.045))):
+        for i, (angle, spread) in enumerate(BEAMS):
             angle += base
             pulse = 0.65 + 0.35 * math.sin(w.t * 0.4 + i * 1.7)
             c = QColor(*colour)
