@@ -172,7 +172,10 @@ class ClockTests(unittest.TestCase):
         self.assertIn("glow", clock)
 
     def test_library_updates_the_clock(self):
-        import sprites
+        try:
+            import sprites                    # needs PySide6 (not installed in the CI test job)
+        except ImportError:
+            self.skipTest("PySide6 not installed")
         lib = sprites.Library([])
         lib.set_clock("23:59", "moon")
         self.assertEqual(lib.get("clock")["frames"][0], art.clock_rows("23:59", "moon"))
