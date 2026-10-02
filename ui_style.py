@@ -40,6 +40,10 @@ def _load_fonts():
     if not _fonts_loaded:
         _fonts_loaded = True
         QFontDatabase.addApplicationFont(os.path.join(_base_dir(), "assets", "fonts", "PixelifySans.ttf"))
+        if os.name == "nt" and QApplication.platformName() == "offscreen":
+            folder = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts")
+            for filename in ("segoeui.ttf", "segoeuib.ttf", "seguisym.ttf"):
+                QFontDatabase.addApplicationFont(os.path.join(folder, filename))
 
 
 def pixel_font(px=16):
@@ -58,6 +62,7 @@ def install(app=None, theme=None):
     app = app or QApplication.instance()
     if app is None:
         return
+    _load_fonts()
     if theme is None:
         if app.property("dp_theme"):
             return
@@ -117,6 +122,8 @@ QFrame#qsep { background: #3a4258; border: none; }
 
 QFrame#update { background: #24352d; border: 1px solid #3f7d5a; border-radius: 6px; }
 QLabel#updatetext { color: #c8f0d4; font: 9pt 'Segoe UI'; }
+QFrame#savewarning { background: #3b2630; border: 1px solid #b9576d; border-radius: 6px; }
+QLabel#saveerror { color: #ffd8e0; font: 9pt 'Segoe UI'; }
 QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; border: none; }
 QScrollBar:vertical { background: transparent; width: 8px; }
 QScrollBar::handle:vertical { background: #3a4258; border-radius: 4px; min-height: 20px; }
@@ -144,7 +151,8 @@ QToolButton#quick { background: transparent; border: 1px solid transparent; bord
 QToolButton#quick:hover { background: #2c3449; border-color: #3a4258; }
 QToolButton#quick:checked { background: #2f3f6e; border-color: #5b7bd5; }
 QToolButton#quick:checked:hover { background: #3a4d85; }
-QToolButton#head, QToolButton#close { color: #8d97b3; border-radius: 9px; padding: 0 6px; }
+QToolButton#head, QToolButton#close { color: #c9d1e6; border-radius: 9px; padding: 0 6px; }
+QToolButton#head { font-size: 12pt; }
 QToolButton#head:hover { color: #ffffff; background: #2c3449; }
 QToolButton#close:hover { color: #ffffff; background: #8c3a4a; }
 QToolButton#newver { border-radius: 9px; padding: 1px 8px; }
@@ -174,6 +182,7 @@ FRAMES = {
     "head_hover": ("#414b72", "#525d8c", "#373f60", INK),
     "close_hover": ("#d0485f", "#e86b80", "#b53a50", "#5e1a28"),
     "update": ("#1d3b2e", "#25503c", "#183226", "#2d7a55"),
+    "warning": ("#482c35", "#65404b", "#3b2630", "#b9576d"),
     "menu": ("#262b40", "#30364f", "#20243a", INK),
     "tip": (INK, INK, INK, "#454f78"),
 }
@@ -263,6 +272,8 @@ QFrame#qsep {{ background: #454f78; border: none; }}
 
 QFrame#update {{ {update} }}
 QLabel#updatetext {{ color: #8ef0bd; }}
+QFrame#savewarning {{ {warning} }}
+QLabel#saveerror {{ color: #ffd8e0; }}
 QScrollArea, QScrollArea > QWidget > QWidget {{ background: transparent; border: none; }}
 QScrollBar:vertical {{ background: #1d2133; width: 8px; margin: 0; }}
 QScrollBar::handle:vertical {{ background: #454f78; min-height: 24px; }}

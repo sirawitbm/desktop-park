@@ -34,7 +34,16 @@ class WeatherTests(unittest.TestCase):
         run(w, 10)
         kinds = {p[0] for p in w.particles}
         self.assertIn("splash", kinds)
-        self.assertLessEqual(len(w.particles), MAX_PARTICLES + 2)
+        self.assertLessEqual(len(w.particles), MAX_PARTICLES)
+
+    def test_4k_rain_and_splashes_respect_the_particle_budget(self):
+        weather = Weather(3840, 2080)
+        weather.set_kind("rain")
+        rng = random.Random(7)
+        for _ in range(400):
+            weather.step(0.05, rng)
+            self.assertLessEqual(len(weather.particles), MAX_PARTICLES)
+        self.assertIn("splash", {particle[0] for particle in weather.particles})
 
     def test_snow_piles_up_then_melts(self):
         w = Weather(400, 300)
@@ -53,6 +62,7 @@ class WeatherTests(unittest.TestCase):
         w.set_kind("clear")
         run(w, 5)
         self.assertEqual(w.particles, [])
+        run(w, 15)                            # the rain clouds drift apart too
         self.assertFalse(w.busy())
 
     def test_wind_builds_up_gradually(self):
@@ -98,6 +108,44 @@ class WeatherTests(unittest.TestCase):
         d = store.clean({"weather": "snow", "weather_auto": True})
         self.assertEqual((d["weather"], d["weather_auto"]), ("snow", True))
         self.assertEqual(store.clean({"weather": "tornado"})["weather"], "clear")
+
+
+
+class CloudTests(unittest.TestCase):
+    def test_cover_follows_the_weather(self):
+        w = Weather(1920, 1040)
+        self.assertEqual(w.cover, 0.0)
+        w.set_kind("rain")
+        run(w, 15)
+        self.assertGreater(w.cover, 0.5)
+        self.assertGreater(w.gloom, 0.9)
+        w.set_kind("wind")
+        run(w, 15)
+        self.assertTrue(0.15 < w.cover < 0.3)
+        self.assertLess(w.gloom, 0.1)
+
+    def test_how_many_clouds_show(self):
+        w = Weather(1920, 1040)
+        w.cover = 1.0
+        self.assertTrue(all(w.cloud_alpha(i) == 1.0 for i in range(len(w.clouds))))
+        w.cover = 0.0
+        self.assertTrue(all(w.cloud_alpha(i) == 0.0 for i in range(len(w.clouds))))
+
+    def test_clouds_stay_in_the_top_strip_and_drift(self):
+        w = Weather(1920, 1040)
+        w.set_kind("wind")
+        xs = [c[0] for c in w.clouds]
+        run(w, 10)
+        self.assertNotEqual(xs, [c[0] for c in w.clouds])
+        for c in w.clouds:
+            self.assertLessEqual(c[1], 1040 * 0.2)
+            self.assertTrue(-400 < c[0] < 1920 + 400)
+
+    def test_sun_and_moon_dim_behind_clouds(self):
+        w = Weather(800, 600)
+        self.assertEqual(w.sky_strength(), 1.0)
+        w.cover = 1.0
+        self.assertTrue(0.2 < w.sky_strength() < 0.5)       # dim, but still there
 
 
 if __name__ == "__main__":

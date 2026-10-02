@@ -130,13 +130,16 @@ class SkyTests(unittest.TestCase):
     def test_arc_stays_in_the_top_of_the_screen(self):
         prev_x = -1
         for i in range(11):
-            x, y = daycycle.arc(i / 10, 1920, 1040, 64)
+            x, y, scale = daycycle.arc(i / 10, 1920, 1040)
             self.assertGreater(x, prev_x)
             prev_x = x
-            self.assertTrue(0 <= y <= 1040 * 0.2)
-            self.assertTrue(0 <= x <= 1920 - 64)
-        noon = daycycle.arc(0.5, 1920, 1040, 64)[1]
-        self.assertLess(noon, daycycle.arc(0.0, 1920, 1040, 64)[1])     # highest at midday
+            self.assertTrue(0 <= y <= 1040 * 0.25)
+            self.assertTrue(0 <= x - 8 * scale and x + 8 * scale <= 1920)   # never off the sides
+        corner = daycycle.arc(0.0, 1920, 1040)
+        noon = daycycle.arc(0.5, 1920, 1040)
+        self.assertEqual(noon[1], 0)                 # at its peak, half off the top
+        self.assertGreater(corner[1], 8 * corner[2])   # in the corner, fully on screen
+        self.assertGreater(noon[2], corner[2])       # biggest in the middle
 
     def test_sky_setting_is_saved(self):
         self.assertTrue(store.clean({})["show_sky"])
@@ -152,7 +155,7 @@ class TintTests(unittest.TestCase):
         self.assertGreater(r, b)
         r, g, b, a = daycycle.tint(1.0)
         self.assertGreater(b, r)
-        self.assertGreater(a, 0.5)
+        self.assertGreater(a, 0.4)
 
     def test_light_keeps_things_bright(self):
         self.assertLess(daycycle.tint(1.0, light=1.0)[3], daycycle.tint(1.0, light=0.0)[3] / 4)

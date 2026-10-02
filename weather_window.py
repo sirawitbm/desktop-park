@@ -105,9 +105,9 @@ class WeatherWindow(QWidget):
         self.on_step = None            # called each tick (the app passes the wind to the pets)
         self._was_busy = False
         self._glow_cache = {}
-        self._moon = None
-        self._sun = None
-        self._sky_ticks = 0
+        self._cloud_cache = {}
+        self._bodies = {}               # (sun/moon, pixel size) -> picture
+        self._sky_elapsed = 0.0
         rng = random.Random(7)                  # the same sky every night
         self._stars = [(rng.random(), rng.random() * 0.36, rng.random(), rng.random() < 0.2)
                        for _ in range(STARS)]
@@ -126,22 +126,26 @@ class WeatherWindow(QWidget):
         winutil.no_activate(hwnd)
         winutil.click_through(hwnd, True)       # always: weather never takes clicks
 
+    def set_low_power(self, on):
+        self.timer.setInterval(100 if on else TICK_MS)
+
     def _tick(self):
         if not self.isVisible():
             return
+        dt = self.timer.interval() / 1000.0
         busy = self.weather.busy()
         if busy:
-            self.weather.step(TICK_MS / 1000.0)
+            self.weather.step(dt)
         elif self.weather.auto:
-            self.weather.step(TICK_MS / 1000.0)  # keep the auto clock running
+            self.weather.step(dt)  # keep the auto clock running
         if self.on_step:
             self.on_step(self.weather)
         if busy or self._was_busy:
             self.update()
         elif self.weather.sky:
-            self._sky_ticks += 1
-            if self._sky_ticks >= 40:          # the sun creeps along: redraw every 2 s
-                self._sky_ticks = 0
+            self._sky_elapsed += dt
+            if self._sky_elapsed >= 2.0:
+                self._sky_elapsed = 0.0
                 self.update()
         self._was_busy = busy
 
@@ -152,12 +156,11 @@ class WeatherWindow(QWidget):
         p.fillRect(event.rect(), Qt.transparent)
         p.setCompositionMode(QPainter.CompositionMode_SourceOver)
         w = self.weather
-        clear_sky = w.kind not in ("rain", "snow")     # clouds hide the sky
-        if w.night > 0.02 and clear_sky:
+        if w.night > 0.02:
             self._draw_stars(p, w)
         if w.sun > 0.01:
             self._rays(p, w)
-        if w.sky and clear_sky:
+        if w.sky:
             self._body(p, w)
         if w.night > 0.02:
             self._glows(p, w)
@@ -191,6 +194,8 @@ class WeatherWindow(QWidget):
                 c = QColor(*_mix(MOTE_DAY, RAY_MOON, w.night))
                 c.setAlphaF(0.85 * a * w.sun)
                 p.fillRect(int(x), int(y), PX, PX, c)
+        if w.cover > 0.01:
+            self._clouds(p, w)          # in front of the sun, moon and rain
         self._snow_pile(p, w)
         p.end()
 
@@ -226,7 +231,7 @@ class WeatherWindow(QWidget):
         """A few faint twinkling stars near the top of the screen."""
         width, height = self.width(), self.height()
         for fx, fy, phase, big in self._stars:
-            a = w.night * (0.35 + 0.3 * math.sin(w.t * (0.8 + phase) + phase * 30))
+            a = w.night * (1.0 - w.cover) * (0.35 + 0.3 * math.sin(w.t * (0.8 + phase) + phase * 30))
             if a <= 0.02:
                 continue
             c = QColor(STAR)
@@ -242,31 +247,96 @@ class WeatherWindow(QWidget):
 
     def body_pos(self, w):
         """Centre of the sun or moon on its arc across the top of the screen."""
-        body, progress = w.sky
-        pm = self._body_pixmap(body)
-        x, y = daycycle.arc(progress, self.width(), self.height(), pm.width())
-        return x + pm.width() / 2, y + pm.height() / 2
+        x, y, _ = daycycle.arc(w.sky[1], self.width(), self.height())
+        return x, y
 
-    def _body_pixmap(self, body):
-        if self._moon is None:
-            self._moon = QPixmap.fromImage(_moon_image())
-            self._sun = QPixmap.fromImage(_sun_image())
-        return self._sun if body == "sun" else self._moon
+    def _body_pixmap(self, body, scale):
+        key = (body, scale)
+        if key not in self._bodies:
+            img = _sun_image(scale=scale) if body == "sun" else _moon_image(n=16, scale=scale)
+            self._bodies[key] = QPixmap.fromImage(img)
+        return self._bodies[key]
 
     def _body(self, p, w):
         """The sun by day, the moon by night, following the clock."""
         body = w.sky[0]
-        strength = (1.0 - w.night) if body == "sun" else w.night
+        strength = ((1.0 - w.night) if body == "sun" else w.night) * w.sky_strength()
         if strength <= 0.02:
             return
-        pm = self._body_pixmap(body)
-        cx, cy = self.body_pos(w)
+        cx, cy, scale = daycycle.arc(w.sky[1], self.width(), self.height())
+        pm = self._body_pixmap(body, scale)
         radius = int(pm.width() * 1.25)
         glow = self._glow_pixmap(radius, "#ffe9a8" if body == "sun" else "#cfdcff")
         p.setOpacity(0.35 * strength)
         p.drawPixmap(int(cx - radius), int(cy - radius), glow)
         p.setOpacity(strength)
         p.drawPixmap(int(cx - pm.width() / 2), int(cy - pm.height() / 2), pm)
+        p.setOpacity(1.0)
+
+    def _cloud_pixmap(self, seed, size, gloom, night):
+        """A pixel cloud: a few round puffs on a flat bottom, a bright top edge
+        and a shaded underside. White by day, grey for rain, blue-grey at night."""
+        key = (round(seed, 3), size, round(gloom * 4), round(night * 4))
+        pm = self._cloud_cache.get(key)
+        if pm is not None:
+            return pm
+        rng = random.Random(seed)
+        w, h = size, max(7, int(size * 0.55))
+        # a lumpy cumulus: a tall puff near the middle, lower shoulders, a few
+        # extra bumps along the top - every cloud a little different
+        puffs = [(w * rng.uniform(0.42, 0.58), 0, w * rng.uniform(0.24, 0.3))]
+        for side in (-1, 1):
+            puffs.append((w * (0.5 + side * rng.uniform(0.22, 0.3)), 0, w * rng.uniform(0.15, 0.21)))
+        for _ in range(rng.randint(1, 3)):
+            puffs.append((w * rng.uniform(0.25, 0.75), 0, w * rng.uniform(0.1, 0.17)))
+        puffs = [(cx, h - r * rng.uniform(0.75, 1.0), r) for cx, _, r in puffs]
+
+        left = min(cx - r * 0.8 for cx, _, r in puffs)
+        right = max(cx + r * 0.8 for cx, _, r in puffs)
+
+        def inside(x, y):
+            if y >= h or x < 0 or x >= w:
+                return False
+            if y < 0:
+                return False
+            if any(math.hypot(x + 0.5 - cx, y + 0.5 - cy) < r for cx, cy, r in puffs):
+                return True
+            # a flat base under the puffs, so the underside has no notches
+            return y >= h - 3 and left <= x + 0.5 <= right
+
+        tone = lambda day, rain, dark: _mix(_mix(day, rain, gloom), dark, night * 0.85)   # noqa: E731
+        fill = QColor(*tone((236, 241, 250), (128, 138, 160), (46, 56, 90)))
+        top = QColor(*tone((255, 255, 255), (162, 172, 192), (66, 78, 116)))
+        under = QColor(*tone((196, 206, 226), (98, 108, 130), (32, 40, 66)))
+        s = BODY_SCALE
+        img = QImage(w * s, h * s, QImage.Format_ARGB32_Premultiplied)
+        img.fill(Qt.transparent)
+        for y in range(h):
+            for x in range(w):
+                if not inside(x, y):
+                    continue
+                if not inside(x, y - 1):
+                    col = top
+                elif y >= h - 2 or not inside(x, y + 2):
+                    col = under
+                else:
+                    col = fill
+                for dy in range(s):
+                    for dx in range(s):
+                        img.setPixelColor(x * s + dx, y * s + dy, col)
+        pm = QPixmap.fromImage(img)
+        if len(self._cloud_cache) > 120:
+            self._cloud_cache.clear()
+        self._cloud_cache[key] = pm
+        return pm
+
+    def _clouds(self, p, w):
+        for i, (x, y, size, seed, _) in enumerate(w.clouds):
+            a = w.cloud_alpha(i)
+            if a <= 0.01:
+                continue
+            p.setOpacity(0.88 * a)
+            p.drawPixmap(int(x), int(y), self._cloud_pixmap(seed, size, w.gloom, w.night))
         p.setOpacity(1.0)
 
     def _glows(self, p, w):

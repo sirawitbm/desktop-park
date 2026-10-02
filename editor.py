@@ -53,7 +53,8 @@ class Canvas(QWidget):
         c = self.cell()
         ox, oy = self.origin()
         w, h = self.ed.w, self.ed.h
-        light, dark = QColor("#3a3f4f"), QColor("#30354a")
+        # a mid-grey checkerboard: see-through squares never look like black paint
+        light, dark = QColor("#8d93a0"), QColor("#7a808e")
         for y in range(h):
             for x in range(w):
                 p.fillRect(ox + x * c, oy + y * c, c, c, light if (x + y) % 2 else dark)
@@ -71,7 +72,7 @@ class Canvas(QWidget):
                 if col:
                     p.fillRect(ox + x * c, oy + y * c, c, c, QColor(col))
         if c >= 8:
-            p.setPen(QColor(255, 255, 255, 18))
+            p.setPen(QColor(0, 0, 0, 28))
             for x in range(w + 1):
                 p.drawLine(ox + x * c, oy, ox + x * c, oy + h * c)
             for y in range(h + 1):
@@ -133,6 +134,8 @@ class Editor(QDialog):
         self.colour = "#ff77a8"
         self._undo = []
         self.cur = 0
+        self.save_error = None
+        self._closing = False
 
         if picture:
             self.w, self.h = artmod.size_of(picture)
@@ -277,8 +280,41 @@ class Editor(QDialog):
 
         self._rebuild_frames()
         self.resize(900, 600)
+        self._saved_state = self._state()
 
     # -- state ---------------------------------------------------------------
+    def _state(self):
+        return (self.w, self.h, tuple(tuple(tuple(row) for row in frame) for frame in self.frames),
+                self.name.text(), self.kind.currentData(), self.behavior.currentData())
+
+    def is_dirty(self):
+        return self._state() != self._saved_state
+
+    def _confirm_close(self):
+        if self._closing or not self.is_dirty():
+            return True
+        choice = QMessageBox.question(self, "Desktop Park", "Save changes to this drawing?",
+                                     QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                                     QMessageBox.Cancel)
+        if choice == QMessageBox.Save:
+            return self._save()
+        return choice == QMessageBox.Discard
+
+    def reject(self):
+        if self._confirm_close() and self.result() != QDialog.Accepted:
+            super().reject()
+
+    def closeEvent(self, event):
+        if not self._confirm_close():
+            event.ignore()
+            return
+        if self.result() == QDialog.Accepted:
+            event.accept()
+            return
+        self._closing = True
+        super().closeEvent(event)
+        self._closing = False
+
     def pixels(self):
         return self.frames[self.cur]
 
@@ -465,9 +501,15 @@ class Editor(QDialog):
     def _save(self):
         if not any(c for f in self.frames for r in f for c in r):
             QMessageBox.information(self, "Desktop Park", "Draw something first!")
-            return
+            return False
+        self.save_error = None
         self.saved.emit(self.to_picture())
+        if self.save_error:
+            QMessageBox.warning(self, "Desktop Park", "The drawing could not be saved.\n" + self.save_error)
+            return False
+        self._saved_state = self._state()
         self.accept()
+        return True
 
 
 def _dist(a, b):

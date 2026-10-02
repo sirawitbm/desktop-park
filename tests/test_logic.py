@@ -9,13 +9,30 @@ class ArtTests(unittest.TestCase):
     def test_builtin_art_is_well_formed(self):
         for a in art.BUILTIN:
             w, h = art.size_of(a)
-            for frame in a["frames"]:
+            for frame in a["frames"] + list(a.get("poses", {}).values()):
                 self.assertEqual(len(frame), h, a["id"])
                 for row in frame:
                     self.assertEqual(len(row), w, a["id"])
                     for ch in row:
                         self.assertTrue(ch == "." or ch in a["palette"], (a["id"], ch))
             self.assertIn(a["behavior"], art.BEHAVIORS)
+
+    def test_polished_tree_sizes_and_walks(self):
+        pictures = art.builtin_by_id()
+        for art_id in ("tree", "cherry", "palm", "spookytree"):
+            self.assertTrue(24 <= art.size_of(pictures[art_id])[1] <= 27, art_id)
+        for art_id in ("cat", "dog", "duck"):
+            self.assertEqual(len(pictures[art_id]["frames"]), 4)
+            self.assertEqual(len({tuple(frame) for frame in pictures[art_id]["frames"]}), 4)
+            self.assertIn("sleep", pictures[art_id]["poses"])
+
+    def test_icons_have_rectangular_rows_and_palette_colors(self):
+        for name, rows in {**art.WEATHER_ICONS, **art.UI_ICONS}.items():
+            self.assertEqual(len({len(row) for row in rows}), 1, name)
+            for row in rows:
+                for character in row:
+                    self.assertTrue(character == "." or character in art.WEATHER_ICON_PALETTE,
+                                    (name, character))
 
 
 class SimTests(unittest.TestCase):
@@ -122,6 +139,15 @@ class SimTests(unittest.TestCase):
         t.vx = 0
         self.assertEqual(t.frame_index(2, True), 0)   # still pet: first frame
 
+    def test_blink_is_brief_and_sleep_has_a_pose(self):
+        thing = Thing("cat", "cat", 16, 10, is_pet=True)
+        thing.age = 5.55
+        self.assertEqual(thing.pose(), "blink")
+        thing.age = 5.8
+        self.assertIsNone(thing.pose())
+        thing.reaction = "sleep"
+        self.assertEqual(thing.pose(), "sleep")
+
 
 class StoreTests(unittest.TestCase):
     def test_round_trip_and_bad_data(self):
@@ -149,6 +175,42 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(d["objects"][0]["behavior"], "stay")
         self.assertEqual(d["custom_art"], [])
         self.assertFalse(d["locked"])
+
+    def test_drawing_frames_share_a_rectangular_canvas(self):
+        picture = store.clean_art({"id": "my-test", "palette": {"a": "#ffffff", "b": "#gggggg"},
+                                   "frames": [["aa", "a"], ["a"], ["aab", "bb", "aa"]]})
+        self.assertEqual(picture["frames"], [["aa", "a."], ["a.", ".."], ["aa", ".."]])
+        self.assertEqual(picture["palette"], {"a": "#ffffff"})
+        self.assertIsNone(store.clean_art({"id": "empty", "palette": {}, "frames": [[""]]}))
+
+    def test_non_finite_coordinates_and_wrong_container_types(self):
+        data = store.clean({"objects": [{"art": "cat", "x": float("nan"), "y": float("inf"),
+                                         "scale": float("inf")}], "custom_art": 42})
+        self.assertEqual((data["objects"][0]["x"], data["objects"][0]["y"],
+                          data["objects"][0]["scale"]), (0, 0, 4))
+        self.assertEqual(store.clean({"objects": 42})["objects"], [])
+
+    def test_presets_validate_and_keep_unique_names(self):
+        data = store.clean({"presets": [{"name": " Evening ", "width": float("inf"),
+                                        "objects": [{"art": "cat", "scale": 3}], "weather": "snow"},
+                                       {"name": "evening"}, {"name": ""}, 42]})
+        self.assertEqual(len(data["presets"]), 1)
+        preset = data["presets"][0]
+        self.assertEqual(preset["name"], "Evening")
+        self.assertEqual(preset["width"], 1920)
+        self.assertEqual(preset["weather"], "snow")
+        self.assertEqual(preset["objects"][0]["scale"], 3)
+
+    def test_drawing_export_round_trip_and_wrong_format(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "drawing.parkart")
+            picture = {"id": "my-test", "name": "Test", "kind": "pet", "behavior": "walk",
+                       "palette": {"a": "#ffffff"}, "frames": [["aa", "aa"], ["a.", ".a"]]}
+            store.export_drawing(picture, path)
+            self.assertEqual(store.import_drawing(path), picture)
+            store.save({"format": "unknown", "version": 1, "picture": picture}, path)
+            with self.assertRaises(ValueError):
+                store.import_drawing(path)
 
 
 if __name__ == "__main__":

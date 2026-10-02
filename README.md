@@ -2,7 +2,7 @@
 
 Little pixel-art pets and plants that live on top of your Windows screen.
 
-![A row of pixel trees, a cottage, a campfire and pets along the bottom of the screen, with a fish, a ghost and a jellyfish floating above](docs/park.png)
+![A row of pixel trees, a cottage, a campfire and pets along the bottom of the screen, with a fish, a ghost and a jellyfish floating above](docs/polish/park.png)
 
 The whole screen is the park, but it never gets in your way: clicks on empty
 space go straight through to your apps. Only the pets and decorations
@@ -16,6 +16,9 @@ a slim bar that fits inside your taskbar.
 - **31 decorations:** trees, flowers, a cottage, a campfire, a pond, crystals, a clock,
   and for Halloween a jack-o'-lantern, a spooky tree, a gravestone and a cauldron
 - **Draw your own** pets and decorations, with animation frames
+- **Saved parks:** keep named arrangements and switch between them
+- **Undo** park edits, and import or export drawings to share them
+- **Low power:** fewer movement and weather updates, without slowing time
 - **Any picture can walk, hop, swim, fly or stay still** - your choice
 - **Weather:** sun rays, rain, snow that piles up, or wind that blows leaves
   (and your flying pets) around - or let it change by itself
@@ -37,16 +40,19 @@ Your desktop gets its own sky. Pick the weather on the board, or press
 
 - **Light rays** - soft beams shining down from the sun with drifting sparkles;
   at night they turn into silver moonbeams from the moon
-- **Rain** - pixel raindrops, slanted by the breeze, that splash when they land
-- **Snow** - flakes drift down and **pile up along the bottom of your screen**,
-  then melt away when the snow stops
-- **Windy** - leaves and gusts blow across, and your flying and swimming pets
-  get pushed around
+- **Rain** - grey clouds roll in along the top of the screen and pixel raindrops
+  fall from them, slanted by the breeze, splashing when they land. The sun or
+  moon peeks dimly through the clouds.
+- **Snow** - soft pale clouds, and flakes that drift down and **pile up along
+  the bottom of your screen**, then melt away when the snow stops
+- **Windy** - a few white clouds race past, leaves and gusts blow across, and
+  your flying and swimming pets get pushed around
 
 ![Light rays, Rain, Snow and Windy side by side](docs/weather.png)
 
 The weather never gets in your way: it lives in its own window that every
-click passes straight through
+click passes straight through. Clouds gather and clear over a few seconds when the weather changes,
+and turn dark blue-grey at night.
 
 ## Day & night
 
@@ -57,7 +63,8 @@ evening):
 
 - **The sun and moon move.** A pixel sun rises in the left corner of your
   screen in the morning, arcs across the top and sets in the right corner in
-  the evening; then the moon does the same overnight, with a few twinkling
+  the evening. It is small and low in the corners and biggest at its peak, where
+  it only peeks in half-way from the top edge, so it never takes much room; then the moon does the same overnight, with a few twinkling
   stars. With **Light rays** on, the beams shine from the sun by day and the
   moon by night.
 - **The park changes colour.** At sunset the pets and plants take on a warm
@@ -97,7 +104,7 @@ run it from source (below).
 
 ## How to use it
 
-<img align="right" width="240" src="docs/board.png" alt="The control board: a grid of pets and decorations, a green Draw your own button, weather buttons, and Lock, Hide park, Clear and Screen buttons">
+<img align="right" width="240" src="docs/polish/board.png" alt="The control board: pets and decorations, drawing and saved-park controls, weather buttons, and Lock, Hide park, Clear and Screen buttons">
 
 - **Add things:** click a picture on the board.
 - **Move:** drag anything in the park. Pets dropped in the air fall back down.
@@ -107,6 +114,15 @@ run it from source (below).
 - **Resize:** scroll the mouse wheel over a thing.
 - **Options:** right-click a thing to change how it moves, its size, turn it
   around, bring it to the front, copy, edit or remove it.
+- **Undo:** the back-arrow in the board title bar, the tray menu, or
+  **Ctrl+Z** while the board has focus restores the last park edit. Up to
+  40 edits are kept for this session, including loading a saved park.
+- **Parks:** save the current arrangement with a name. Each saved park's
+  menu offers Load, Rename and Delete. Weather and time-of-day settings
+  are saved too; positions adapt to the current monitor.
+- **Low power:** toggle the leaf button beside Parks (or Low power in the
+  tray). Movement runs at about 15 updates per second and weather at 10,
+  instead of 30 and 20. Animation time and auto-weather timing stay the same.
 - **Weather:** the buttons under WEATHER on the board: Off, Light rays, Rain,
   Snow, Windy, and **Auto** to let it change by itself every few minutes.
   Also in the tray menu and on the folded bar. Weather never catches the mouse.
@@ -127,13 +143,19 @@ run it from source (below).
 
 <br clear="right">
 
-![The folded bar in both looks: the fish, a weather button, an eye button to hide the park, a padlock button to lock it, a green New! button when an update is out, and buttons to open or close the board](docs/hotbar.png)
+![The folded bar in both looks, with weather, time, hide, lock, undo and board controls](docs/polish/hotbar.png)
 
 **Two looks:** right-click the fish in the tray and pick **Look > Modern** (the
 default) or **Look > Pixel**, a modern pixel-art style with a pixel font that
 matches the pets. It switches right away and is remembered.
 
-![The board in the Modern look and in the Pixel look, side by side](docs/looks.png)
+![The board in the Modern look and in the Pixel look, side by side](docs/polish/looks.png)
+
+**Saving:** drawings are written immediately when you press Save. If a write
+fails, the editor stays open and the board shows **Changes not saved** with
+a Retry button (a **!** button on the folded bar). The warning clears only
+after a successful save. If saving fails while quitting from the tray, choose
+**Retry**, **Quit without saving** (discards unsaved changes), or **Cancel**.
 
 **Updates:** Desktop Park checks GitHub for a new version a few seconds after
 it starts and every 6 hours. If there is one, a green bar appears on the
@@ -147,7 +169,7 @@ of them. Exclusive fullscreen covers everything.
 
 ## Draw your own
 
-![The drawing editor with the bunny loaded: a big pixel grid, a colour palette, two animation frames and a live preview](docs/editor.png)
+![The drawing editor with the bunny loaded: a big pixel grid, a colour palette, two animation frames and a live preview](docs/polish/editor.png)
 
 Press **Draw your own** on the board, or right-click any built-in picture and
 pick **Draw my own version** to start from a copy.
@@ -157,8 +179,21 @@ pick **Draw my own version** to start from a copy.
 - Add up to 6 **animation frames**. They play at 10 frames per second while
   it moves, and the previous frame shows faintly to help you line things up.
 - Draw it **facing right** - it turns around by itself.
+- Closing a changed drawing asks whether to Save, Discard or Cancel.
 
 Your drawings show up under **My drawings** on the board.
+
+**Share drawings:** right-click a picture on the board and choose **Export
+drawing** to write a `.parkart` file. The folder button beside Parks imports
+one. Imported drawings receive a new ID, so importing the same file twice
+creates independent copies. Drawing files contain the palette, animation
+frames and movement choice, not your whole park or personal settings.
+Built-in blink/sleep poses are not part of editable drawing files.
+
+Cat, dog and duck now have four-frame walks. They and the bunny blink while
+resting and have a sleeping pose; other pets keep their existing cycles.
+
+![Cat, dog, duck and bunny moving, blinking and sleeping](docs/polish/animation.gif)
 
 ## Run from source
 
@@ -171,6 +206,14 @@ pythonw desktop_park.py
 
 Or double-click `Desktop Park.bat`. Run the tests with
 `python -m unittest discover -s tests`.
+
+The README pictures are rendered off-screen (install Pillow first,
+`pip install pillow`): `python tools/screenshots.py docs/polish` for the board,
+editor and park, `python tools/weather_demo.py` and `python tools/night_demo.py`
+for the weather and night animations. `python tools/contact_sheets.py <folder>`
+draws every sprite, icon and cloud for design reviews, and
+`python tools/profile_weather.py` times off-screen 1080p/4K weather rendering
+(it does not measure native Windows GPU/compositor costs).
 
 Where your park is saved: `local/park.json` from source, `data/` next to the
 exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.

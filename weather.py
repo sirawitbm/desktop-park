@@ -12,6 +12,10 @@ LABELS = {"clear": "Clear", "sun": "Light rays", "rain": "Rain", "snow": "Snow",
 
 MAX_PARTICLES = 700
 FIREFLIES = 26           # at most this many on a 1920-pixel-wide screen
+# How cloudy each weather is (0 clear .. 1 overcast), and how dark the clouds are.
+CLOUD_COVER = {"clear": 0.0, "sun": 0.0, "rain": 0.55, "snow": 0.45, "wind": 0.2}
+CLOUD_GLOOM = {"clear": 0.0, "sun": 0.0, "rain": 1.0, "snow": 0.35, "wind": 0.0}
+CLOUD_BAND = (-0.02, 0.11)  # clouds float in this slice of the screen height (top)
 SNOW_CELL = 4            # snow piles up in columns this many pixels wide
 SNOW_MAX = 16            # tallest the pile gets, in pixels
 AUTO_MIN, AUTO_MAX = 4 * 60, 10 * 60     # auto mode changes every 4-10 minutes
@@ -39,6 +43,9 @@ class Weather:
         self.night = 0.0             # 0 day .. 1 night (daycycle.py): fireflies, glows
         self.glows = []              # [(x, y, radius, colour, flickers)] lights in the park
         self.sky = None              # ("sun" or "moon", 0..1 across the sky), or None to hide
+        self.cover = 0.0             # 0..1 how cloudy, eases toward the weather's amount
+        self.gloom = 0.0             # 0..1 how dark (rainy) the clouds are
+        self.clouds = []             # [x, y, size in cloud pixels, shape seed, speed factor]
         self.auto = False
         self.auto_timer = 0.0
         self._spawn_debt = {}
@@ -48,6 +55,30 @@ class Weather:
         self.width, self.height = max(1, width), max(1, height)
         cols = self.width // SNOW_CELL + 1
         self.snow = (self.snow + [0.0] * cols)[:cols]
+        self._make_clouds()
+
+    def _make_clouds(self, rng=None):
+        """A fixed set of clouds, spread along the top. Which of them show
+        depends on how cloudy it is (the first ones show first)."""
+        rng = rng or random.Random(11)
+        n = max(6, self.width // 115)
+        top, bottom = CLOUD_BAND
+        self.clouds = []
+        for i in range(n):
+            # sized for a 1000-pixel-tall screen, smaller or bigger to match yours
+            size = max(10, int(rng.randint(30, 54) * min(1.3, max(0.4, self.height / 1000))))
+            x = (i + rng.uniform(-0.3, 0.3)) * self.width / n
+            y = rng.uniform(top, bottom) * self.height
+            self.clouds.append([x, y, size, rng.random(), rng.uniform(0.6, 1.2)])
+        rng.shuffle(self.clouds)            # thin cover: a few, spread out
+
+    def cloud_alpha(self, i):
+        """0..1 how much of cloud number i is showing right now."""
+        return max(0.0, min(1.0, self.cover * len(self.clouds) - i))
+
+    def sky_strength(self):
+        """How much the sun, moon and stars show through the clouds."""
+        return 1.0 - 0.65 * self.cover
 
     def set_kind(self, kind):
         if kind in KINDS:
@@ -59,7 +90,7 @@ class Weather:
 
     def busy(self):
         """True while anything is on screen (so the window must redraw)."""
-        return (self.kind != "clear" or self.particles or self.sun > 0.01
+        return (self.kind != "clear" or self.particles or self.sun > 0.01 or self.cover > 0.01
                 or any(h > 0.05 for h in self.snow)
                 or self.night > 0.02)
 
@@ -81,6 +112,18 @@ class Weather:
         self.wind += (target - self.wind) * min(1.0, dt * 0.8)
         sun_target = 1.0 if self.kind == "sun" else 0.0
         self.sun += (sun_target - self.sun) * min(1.0, dt * 0.7)
+        # clouds gather and clear over a few seconds, and drift with the wind
+        self.cover += (CLOUD_COVER[self.kind] - self.cover) * min(1.0, dt * 0.4)
+        self.gloom += (CLOUD_GLOOM[self.kind] - self.gloom) * min(1.0, dt * 0.4)
+        if self.cover > 0.001:
+            gust = self.gust()
+            for c in self.clouds:
+                c[0] += (10 + gust * 0.35) * c[4] * dt
+                span = c[2] * 4 + 40                  # cloud width in screen pixels, roughly
+                if c[0] > self.width + span:
+                    c[0] = -span
+                elif c[0] < -span:
+                    c[0] = self.width + span
 
         self._spawn(dt, rng)
         self._move(dt, rng)
@@ -172,7 +215,7 @@ class Weather:
             if p[1] > self.width + 150 or p[1] < -0.4 * self.width - 150:
                 continue
             alive.append(p)
-        self.particles = alive
+        self.particles = alive[:MAX_PARTICLES]
 
     # -- snow pile -------------------------------------------------------------
     def snow_at(self, x):

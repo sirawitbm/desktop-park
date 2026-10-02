@@ -18,288 +18,26 @@ BEHAVIOR_LABELS = {
 
 # A picture: id, name, kind ("deco" or "pet"), the behaviour it starts with,
 # palette, frames.
+from art_pack import PAL, REDRAWN  # noqa: E402
+
+# The original set, redrawn in v0.5 on the shared palette (art_pack.REDRAWN).
 BUILTIN = [
-    {
-        "id": "tree", "name": "Tree", "kind": "deco", "behavior": "stay",
-        "palette": {"g": "#2d6a3e", "G": "#4caf50", "l": "#8bd06a",
-                    "b": "#8a5530", "d": "#5a3418"},
-        "frames": [[
-            "......gggg......",
-            "....ggGGGGgg....",
-            "...gGGGlGGGGg...",
-            "..gGGlllGGGGGg..",
-            "..gGGGlGGGGlGg..",
-            ".gGGGGGGGGlllGg.",
-            ".gGlGGGGGGGlGGg.",
-            ".gGllGGGGGGGGGg.",
-            ".ggGlGGGGlGGGgg.",
-            "..gGGGGGlllGGg..",
-            "..ggGGGGGlGGgg..",
-            "...gggGGGGggg...",
-            ".....ggbdgg.....",
-            ".......bd.......",
-            ".......bd.......",
-            ".......bd.......",
-            "......bbdd......",
-            ".....bb..dd.....",
-        ]],
-    },
-    {
-        "id": "pine", "name": "Pine", "kind": "deco", "behavior": "stay",
-        "palette": {"g": "#1f5236", "G": "#2f7d4f", "l": "#5fb37a",
-                    "b": "#6b4024"},
-        "frames": [[
-            ".......g.......",
-            "......gGg......",
-            ".....gGlGg.....",
-            "....gGGGlGg....",
-            "......gGg......",
-            ".....gGGlg.....",
-            "....gGGGGlg....",
-            "...gGlGGGGGg...",
-            ".....gGGGg.....",
-            "....gGGGGlg....",
-            "...gGGlGGGGg...",
-            "..gGGGGGGlGGg..",
-            ".gggggggggggg..",
-            "......bbb......",
-            "......bbb......",
-        ]],
-    },
-    {
-        "id": "bush", "name": "Bush", "kind": "deco", "behavior": "stay",
-        "palette": {"g": "#2d6a3e", "G": "#4caf50", "l": "#8bd06a",
-                    "r": "#e04b3f"},
-        "frames": [[
-            "....gggg.ggg....",
-            "..ggGGGGgGGGgg..",
-            ".gGGlGGGGGlGGGg.",
-            "gGGllGrGGGGGrGGg",
-            "gGGGGGGGGlGGGGGg",
-            "gGrGGGGGlllGGGGg",
-            ".gGGGlGGGGGGGrg.",
-            "..gggggggggggg..",
-        ]],
-    },
-    {
-        "id": "rock", "name": "Rock", "kind": "deco", "behavior": "stay",
-        "palette": {"k": "#4a4f5a", "K": "#8a919c", "w": "#c3c9d2",
-                    "d": "#636a75"},
-        "frames": [[
-            "....kkkkk...",
-            "..kkKKKKKkk.",
-            ".kKKwwKKKKk.",
-            "kKKwKKKKKKKk",
-            "kKKKKKKKKKdk",
-            "kdKKKKKKKddk",
-            ".kkddddddkk.",
-        ]],
-    },
-    {
-        "id": "flower", "name": "Flower", "kind": "deco", "behavior": "stay",
-        "palette": {"p": "#e05a8a", "P": "#ff8fb5", "y": "#ffd84a",
-                    "g": "#3f8f3f", "l": "#6cc24a"},
-        "frames": [[
-            "..ppp..",
-            ".pPyPp.",
-            "..ppp..",
-            "...g...",
-            ".l.g...",
-            "..lg.l.",
-            "...gl..",
-            "...g...",
-        ]],
-    },
-    {
-        "id": "grass", "name": "Grass", "kind": "deco", "behavior": "stay",
-        "palette": {"g": "#3f8f3f", "l": "#6cc24a"},
-        "frames": [[
-            "...l....l.",
-            ".l.gl..lg.",
-            ".gl.g.lg.l",
-            "lgg.glgg.g",
-            "gggggggggg",
-        ]],
-    },
-    {
-        "id": "mushroom", "name": "Mushroom", "kind": "deco", "behavior": "stay",
-        "palette": {"r": "#b8322f", "R": "#e04b3f", "w": "#ffffff",
-                    "c": "#f1e3c6", "C": "#d9c49c"},
-        "frames": [[
-            "...rrrr...",
-            ".rrRwRRrr.",
-            "rRwRRRwRRr",
-            "rRRRRRRRwr",
-            "rrrrrrrrrr",
-            "...cccc...",
-            "...cCcc...",
-            "...ccCc...",
-            "..cccccc..",
-        ]],
-    },
-    {
-        "id": "seaweed", "name": "Seaweed", "kind": "deco", "behavior": "stay",
-        "palette": {"g": "#1e7a4c", "G": "#3fbf7a"},
-        "frames": [
-            [
-                "..g.....",
-                "..gG....",
-                "...gG...",
-                "...gG.g.",
-                "..gG..gG",
-                "..gG.gG.",
-                "...gGgG.",
-                "...gGgG.",
-                "..gG.gG.",
-                "..gG..gG",
-                "...gG.gG",
-                "...gGgG.",
-            ],
-            [
-                "...g....",
-                "...gG...",
-                "..gG....",
-                "..gG..g.",
-                "...gG.gG",
-                "...gGgG.",
-                "..gG.gG.",
-                "..gG..gG",
-                "...gG.gG",
-                "...gGgG.",
-                "..gG.gG.",
-                "...gGgG.",
-            ],
-        ],
-    },
-    {
-        "id": "castle", "name": "Castle", "kind": "deco", "behavior": "stay",
-        "palette": {"k": "#5b5f6e", "K": "#9aa0b0", "w": "#c9cede",
-                    "d": "#2a2c36", "f": "#e04b3f"},
-        "frames": [[
-            "..........f.....",
-            "..........ff....",
-            "..........k.....",
-            "k.k.k....kKk....",
-            "kKKKk....kKk....",
-            "kKdKk.k.kKKKk.k.",
-            "kKKKkkKkKKKKKkKk",
-            "kKKKKKKKKKdKKKKk",
-            "kKwKKKKKKKKKKwKk",
-            "kKKKKKdddKKKKKKk",
-            "kKKKKdddddKKKKKk",
-            "kKKKKdddddKKKKKk",
-            "kkkkkdddddkkkkkk",
-        ]],
-    },
-    {
-        "id": "fish", "name": "Fish", "kind": "pet", "behavior": "swim",
-        "palette": {"d": "#c85a14", "o": "#ff8a2a", "O": "#ffb25a",
-                    "w": "#ffffff", "e": "#1a1a1a"},
-        "frames": [
-            [
-                "....dddd....",
-                "d..doOOOod..",
-                "dddoOOOOOwd.",
-                "ddooOOOOOeod",
-                "dddoOOOOOOd.",
-                "d..dooooodd.",
-                "....dddd....",
-            ],
-            [
-                "....dddd....",
-                "...doOOOod..",
-                ".ddoOOOOOwd.",
-                "dddoOOOOOeod",
-                ".ddoOOOOOOd.",
-                "...dooooodd.",
-                "....dddd....",
-            ],
-        ],
-    },
-    {
-        "id": "cat", "name": "Cat", "kind": "pet", "behavior": "walk",
-        "palette": {"k": "#3b2a1e", "c": "#e8a04a", "C": "#f5c27a",
-                    "e": "#1a1a1a", "p": "#ff9fb0"},
-        "frames": [
-            [
-                "..........k...k.",
-                "k.........kk.kk.",
-                "kc........kcccck",
-                ".kc.......kcecek",
-                ".kc.kkkkkkkCCpCk",
-                "..kccccccccckkk.",
-                "..kcCcccCcccck..",
-                "..kcccccccccck..",
-                "...kck.kck.kck..",
-                "...kk..kk..kk...",
-            ],
-            [
-                "..........k...k.",
-                "..........kk.kk.",
-                "k.........kcccck",
-                "kc........kcecek",
-                ".kc.kkkkkkkCCpCk",
-                "..kccccccccckkk.",
-                "..kcCcccCcccck..",
-                "..kcccccccccck..",
-                "..kck..kck..kck.",
-                "..kk...kk....kk.",
-            ],
-        ],
-    },
-    {
-        "id": "slime", "name": "Slime", "kind": "pet", "behavior": "hop",
-        "palette": {"k": "#1f6b3a", "g": "#4fd27a", "l": "#b8f5c8",
-                    "e": "#123320"},
-        "frames": [
-            [
-                "............",
-                "....kkkk....",
-                "..kkggggkk..",
-                ".kglgggggek.",
-                ".kgllggggek.",
-                "kgggggggggk.",
-                "kgggggggggk.",
-                ".kkkkkkkkk..",
-            ],
-            [
-                "............",
-                "............",
-                "............",
-                "...kkkkkk...",
-                ".kkglgggekk.",
-                "kgglggggggek",
-                "kggggggggggk",
-                "kkkkkkkkkkkk",
-            ],
-        ],
-    },
-    {
-        "id": "bird", "name": "Bird", "kind": "pet", "behavior": "fly",
-        "palette": {"k": "#1d3557", "b": "#4a90d9", "B": "#9cc9f5",
-                    "y": "#ffc93c", "e": "#111111"},
-        "frames": [
-            [
-                "...kk.......",
-                "...kbk......",
-                "....kbk.kk..",
-                "..kkbbbkbek.",
-                ".kbbbbBBbbyy",
-                "kbbbbBBBbk..",
-                ".kkkkkkkk...",
-            ],
-            [
-                "............",
-                "............",
-                "........kk..",
-                "..kkkkkkbek.",
-                ".kbbbbBBbbyy",
-                "kbbbkbBBbk..",
-                ".kkkbbkkk...",
-            ],
-        ],
-    },
+    {"id": "tree", "name": "Tree", "kind": "deco", "behavior": "stay"},
+    {"id": "pine", "name": "Pine", "kind": "deco", "behavior": "stay"},
+    {"id": "bush", "name": "Bush", "kind": "deco", "behavior": "stay"},
+    {"id": "rock", "name": "Rock", "kind": "deco", "behavior": "stay"},
+    {"id": "flower", "name": "Flower", "kind": "deco", "behavior": "stay"},
+    {"id": "grass", "name": "Grass", "kind": "deco", "behavior": "stay"},
+    {"id": "mushroom", "name": "Mushroom", "kind": "deco", "behavior": "stay"},
+    {"id": "seaweed", "name": "Seaweed", "kind": "deco", "behavior": "stay"},
+    {"id": "castle", "name": "Castle", "kind": "deco", "behavior": "stay"},
+    {"id": "fish", "name": "Fish", "kind": "pet", "behavior": "swim"},
+    {"id": "cat", "name": "Cat", "kind": "pet", "behavior": "walk"},
+    {"id": "slime", "name": "Slime", "kind": "pet", "behavior": "hop"},
+    {"id": "bird", "name": "Bird", "kind": "pet", "behavior": "fly"},
 ]
+for _a in BUILTIN:
+    _a["palette"], _a["frames"] = PAL, REDRAWN[_a["id"]]
 
 # Little pictures that pop out when you click a pet.
 PARTICLES = {
@@ -363,29 +101,30 @@ PARTICLES = {
 # Icons for the weather buttons on the board.
 WEATHER_ICON_PALETTE = {"y": "#ffcd4f", "Y": "#fff1a8", "w": "#f4f4f4",
                         "S": "#94b0c2", "c": "#41a6f6", "C": "#73eff7",
-                        "k": "#1a1c2c", "p": "#ff8a9a", "e": "#e8c48c", "r": "#b13e53"}
+                        "k": "#1a1c2c", "p": "#ff8a9a", "e": "#e8c48c", "r": "#b13e53",
+                        "G": "#38b764", "l": "#a7f070"}
 WEATHER_ICONS = {
     "clear": [
-        ".........",
-        ".........",
-        "...SSS...",
         "..SSSSS..",
-        ".SSSSSSSS",
-        "SSSSSSSSS",
-        ".SSSSSSS.",
-        ".........",
+        ".S....SS.",
+        "S....S..S",
+        "S...S...S",
+        "S..S....S",
+        "S.S.....S",
+        ".SS....S.",
+        "..SSSSS..",
         ".........",
     ],
     "sun": [
-        "...yYy...",
-        "...yyy...",
-        "..y.y.y..",
-        "..y.y.y..",
-        ".y..y..y.",
-        ".y..y..y.",
-        "y...y...y",
-        "y...y...y",
-        ".........",
+        "yYy......",
+        "YYY.y....",
+        "yYy..y...",
+        ".y....y..",
+        "..y....y.",
+        "...y....y",
+        "..y.y....",
+        "....y.y..",
+        ".....y..y",
     ],
     "rain": [
         "..www....",
@@ -424,6 +163,17 @@ WEATHER_ICONS = {
 
 # Icons for the folded board's quick buttons (same palette as the weather ones).
 UI_ICONS = {
+    "eco": [
+        "......GG.",
+        "....GllG.",
+        "...GlllG.",
+        "..GllGlG.",
+        ".GllGllG.",
+        ".GlGllG..",
+        ".GGllG...",
+        "..GGG....",
+        ".G.......",
+    ],
     "day": [
         "....y....",
         ".y.....y.",
@@ -530,13 +280,13 @@ UI_ICONS = {
     ],
     "eye": [
         ".........",
+        ".........",
         "..wwwww..",
-        ".w.....w.",
-        "w..ccc..w",
-        "w..cCc..w",
-        "w..ccc..w",
-        ".w.....w.",
+        ".ww.C.ww.",
+        "ww.CkC.ww",
+        ".ww.C.ww.",
         "..wwwww..",
+        ".........",
         ".........",
     ],
     "lock": [
@@ -574,12 +324,18 @@ def builtin_by_id():
     return {a["id"]: dict(a, builtin=True) for a in BUILTIN}
 
 
-from art_pack import GLOWS, HALLOWEEN, PACK  # noqa: E402  (the bigger shared-palette set)
+from art_pack import GLOWS, HALLOWEEN, PACK, POSES, WALKS  # noqa: E402  (the bigger shared-palette set)
 
 BUILTIN += PACK + HALLOWEEN
 for _a in BUILTIN:
+    if _a["id"] in REDRAWN:                     # resized / redrawn in v0.5
+        _a["frames"] = REDRAWN[_a["id"]]
     if _a["id"] in GLOWS:
         _a["glow"] = GLOWS[_a["id"]]
+    if _a["id"] in WALKS:
+        _a["frames"] = WALKS[_a["id"]]
+    if _a["id"] in POSES:
+        _a["poses"] = POSES[_a["id"]]
 
 
 # -- the clock decoration: shows the real time ---------------------------------
@@ -592,39 +348,38 @@ DIGITS = {
     ":": [".", "#", ".", "#", "."],
 }
 CLOCK_ICONS = {
-    "sun": [".y.y.", "..y..", "yyyyy", "..y..", ".y.y."],
-    "moon": [".ww..", "ww...", "ww...", "ww...", ".ww.."],
+    "sun": ["y.y", ".y.", "yYy", ".y.", "y.y"],
+    "moon": [".ww", "ww.", "ww.", "ww.", ".ww"],
 }
 CLOCK_PALETTE = {"k": "#1a1c2c", "K": "#566c86", "s": "#94b0c2", "u": "#1f2a52",
-                 "y": "#ffcd4f", "w": "#e8eeff"}
+                 "y": "#ffcd4f", "Y": "#fff1a8", "w": "#e8eeff"}
 
 
 def clock_rows(text="12:00", body="sun"):
     """A little pixel digital clock reading `text` (HH:MM), with a sun or
-    moon icon. 29 x 12 art pixels."""
-    w, h = 29, 12
+    moon icon. 25 x 10 art pixels (v0.5: slimmer, so it isn't the biggest
+    thing in the park)."""
+    w, h = 25, 10
     g = [["."] * w for _ in range(h)]
-    for y in range(11):
+    for y in range(9):
         for x in range(w):
-            if y in (0, 10) or x in (0, w - 1):
+            if y in (0, 8) or x in (0, w - 1):
                 g[y][x] = "k"
             elif y == 1:
                 g[y][x] = "s"                      # light catching the top edge
-            elif y == 9 or x in (1, w - 2):
-                g[y][x] = "K"
             else:
                 g[y][x] = "u"
-    for x in (4, 5, 23, 24):                       # little feet
-        g[11][x] = "k"
+    for x in (3, 4, 20, 21):                       # little feet
+        g[9][x] = "k"
 
     def stamp(rows, x0, colour):
         for dy, row in enumerate(rows):
             for dx, ch in enumerate(row):
                 if ch != ".":
-                    g[3 + dy][x0 + dx] = colour if ch == "#" else ch
+                    g[2 + dy][x0 + dx] = colour if ch == "#" else ch
 
-    stamp(CLOCK_ICONS.get(body, CLOCK_ICONS["sun"]), 3, "y")
-    x = 9
+    stamp(CLOCK_ICONS.get(body, CLOCK_ICONS["sun"]), 2, "y")
+    x = 6
     for ch in text[:5]:
         glyph = DIGITS.get(ch, DIGITS["0"])
         stamp(glyph, x, "y")

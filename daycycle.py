@@ -46,7 +46,7 @@ def is_halloween_season(today=None):
 # fire stay lit.
 SUNSET = (214, 104, 96)
 MOON = (24, 34, 86)
-MAX_TINT = 0.62
+MAX_TINT = 0.5            # never darker than this, so pets stay readable at night
 
 
 def tint(night, light=0.0):
@@ -84,15 +84,21 @@ def sky(when=None, mode="clock"):
     return "moon", since / night_len
 
 
-def arc(progress, width, height, size):
-    """Top-left corner for the sun/moon picture: low in the corners, highest
-    at midday / midnight, always within the top fifth of the screen."""
+SMALL, BIG = 3, 6        # pixel size of the sun/moon in the corners and at its peak
+
+
+def arc(progress, width, height):
+    """Where the sun or moon is: (centre x, centre y, pixel size).
+
+    Low and small in the corners; at midday / midnight it is at its biggest
+    but climbs half off the top of the screen, so it takes little room."""
     import math
-    margin = size
-    x = margin + progress * (width - 2 * margin) - size / 2
-    top, low = height * 0.03, height * 0.18
-    y = low - (low - top) * math.sin(math.pi * min(1.0, max(0.0, progress)))
-    return x, y
+    up = math.sin(math.pi * min(1.0, max(0.0, progress)))     # 0 in the corners, 1 at the peak
+    scale = round(SMALL + (BIG - SMALL) * up)                 # whole pixels stay crisp
+    half = 8 * scale                                          # half the picture's width
+    x = half + progress * (width - 2 * half)
+    y = (height * 0.12 + half) * (1 - up)                     # at the peak the centre sits on the top edge
+    return x, y, scale
 
 
 def clock_text(when=None):
