@@ -53,6 +53,7 @@ class WeatherTests(unittest.TestCase):
         w.set_kind("clear")
         run(w, 5)
         self.assertEqual(w.particles, [])
+        run(w, 15)                            # the rain clouds drift apart too
         self.assertFalse(w.busy())
 
     def test_wind_builds_up_gradually(self):
@@ -98,6 +99,44 @@ class WeatherTests(unittest.TestCase):
         d = store.clean({"weather": "snow", "weather_auto": True})
         self.assertEqual((d["weather"], d["weather_auto"]), ("snow", True))
         self.assertEqual(store.clean({"weather": "tornado"})["weather"], "clear")
+
+
+
+class CloudTests(unittest.TestCase):
+    def test_cover_follows_the_weather(self):
+        w = Weather(1920, 1040)
+        self.assertEqual(w.cover, 0.0)
+        w.set_kind("rain")
+        run(w, 15)
+        self.assertGreater(w.cover, 0.95)
+        self.assertGreater(w.gloom, 0.9)
+        w.set_kind("wind")
+        run(w, 15)
+        self.assertTrue(0.3 < w.cover < 0.5)
+        self.assertLess(w.gloom, 0.1)
+
+    def test_how_many_clouds_show(self):
+        w = Weather(1920, 1040)
+        w.cover = 1.0
+        self.assertTrue(all(w.cloud_alpha(i) == 1.0 for i in range(len(w.clouds))))
+        w.cover = 0.0
+        self.assertTrue(all(w.cloud_alpha(i) == 0.0 for i in range(len(w.clouds))))
+
+    def test_clouds_stay_in_the_top_strip_and_drift(self):
+        w = Weather(1920, 1040)
+        w.set_kind("wind")
+        xs = [c[0] for c in w.clouds]
+        run(w, 10)
+        self.assertNotEqual(xs, [c[0] for c in w.clouds])
+        for c in w.clouds:
+            self.assertLessEqual(c[1], 1040 * 0.2)
+            self.assertTrue(-400 < c[0] < 1920 + 400)
+
+    def test_sun_and_moon_dim_behind_clouds(self):
+        w = Weather(800, 600)
+        self.assertEqual(w.sky_strength(), 1.0)
+        w.cover = 1.0
+        self.assertTrue(0.2 < w.sky_strength() < 0.5)       # dim, but still there
 
 
 if __name__ == "__main__":

@@ -37,16 +37,19 @@ Your desktop gets its own sky. Pick the weather on the board, or press
 
 - **Light rays** - soft beams shining down from the sun with drifting sparkles;
   at night they turn into silver moonbeams from the moon
-- **Rain** - pixel raindrops, slanted by the breeze, that splash when they land
-- **Snow** - flakes drift down and **pile up along the bottom of your screen**,
-  then melt away when the snow stops
-- **Windy** - leaves and gusts blow across, and your flying and swimming pets
-  get pushed around
+- **Rain** - grey clouds roll in along the top of the screen and pixel raindrops
+  fall from them, slanted by the breeze, splashing when they land. The sun or
+  moon peeks dimly through the clouds.
+- **Snow** - soft pale clouds, and flakes that drift down and **pile up along
+  the bottom of your screen**, then melt away when the snow stops
+- **Windy** - a few white clouds race past, leaves and gusts blow across, and
+  your flying and swimming pets get pushed around
 
 ![Light rays, Rain, Snow and Windy side by side](docs/weather.png)
 
 The weather never gets in your way: it lives in its own window that every
-click passes straight through
+click passes straight through. Clouds gather and clear over a few seconds when the weather changes,
+and turn dark blue-grey at night.
 
 ## Day & night
 

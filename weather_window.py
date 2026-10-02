@@ -105,6 +105,7 @@ class WeatherWindow(QWidget):
         self.on_step = None            # called each tick (the app passes the wind to the pets)
         self._was_busy = False
         self._glow_cache = {}
+        self._cloud_cache = {}
         self._moon = None
         self._sun = None
         self._sky_ticks = 0
@@ -152,12 +153,11 @@ class WeatherWindow(QWidget):
         p.fillRect(event.rect(), Qt.transparent)
         p.setCompositionMode(QPainter.CompositionMode_SourceOver)
         w = self.weather
-        clear_sky = w.kind not in ("rain", "snow")     # clouds hide the sky
-        if w.night > 0.02 and clear_sky:
+        if w.night > 0.02:
             self._draw_stars(p, w)
         if w.sun > 0.01:
             self._rays(p, w)
-        if w.sky and clear_sky:
+        if w.sky:
             self._body(p, w)
         if w.night > 0.02:
             self._glows(p, w)
@@ -191,6 +191,8 @@ class WeatherWindow(QWidget):
                 c = QColor(*_mix(MOTE_DAY, RAY_MOON, w.night))
                 c.setAlphaF(0.85 * a * w.sun)
                 p.fillRect(int(x), int(y), PX, PX, c)
+        if w.cover > 0.01:
+            self._clouds(p, w)          # in front of the sun, moon and rain
         self._snow_pile(p, w)
         p.end()
 
@@ -226,7 +228,7 @@ class WeatherWindow(QWidget):
         """A few faint twinkling stars near the top of the screen."""
         width, height = self.width(), self.height()
         for fx, fy, phase, big in self._stars:
-            a = w.night * (0.35 + 0.3 * math.sin(w.t * (0.8 + phase) + phase * 30))
+            a = w.night * (1.0 - w.cover) * (0.35 + 0.3 * math.sin(w.t * (0.8 + phase) + phase * 30))
             if a <= 0.02:
                 continue
             c = QColor(STAR)
@@ -256,7 +258,7 @@ class WeatherWindow(QWidget):
     def _body(self, p, w):
         """The sun by day, the moon by night, following the clock."""
         body = w.sky[0]
-        strength = (1.0 - w.night) if body == "sun" else w.night
+        strength = ((1.0 - w.night) if body == "sun" else w.night) * w.sky_strength()
         if strength <= 0.02:
             return
         pm = self._body_pixmap(body)
@@ -267,6 +269,60 @@ class WeatherWindow(QWidget):
         p.drawPixmap(int(cx - radius), int(cy - radius), glow)
         p.setOpacity(strength)
         p.drawPixmap(int(cx - pm.width() / 2), int(cy - pm.height() / 2), pm)
+        p.setOpacity(1.0)
+
+    def _cloud_pixmap(self, seed, size, gloom, night):
+        """A pixel cloud: a few round puffs on a flat bottom, a bright top edge
+        and a shaded underside. White by day, grey for rain, blue-grey at night."""
+        key = (round(seed, 3), size, round(gloom * 4), round(night * 4))
+        pm = self._cloud_cache.get(key)
+        if pm is not None:
+            return pm
+        rng = random.Random(seed)
+        w, h = size, max(6, int(size * 0.48))
+        puffs = []
+        for fx, fr in ((0.24, 0.20), (0.48, 0.30), (0.72, 0.22), (0.36, 0.17), (0.6, 0.18)):
+            r = fr * w * rng.uniform(0.85, 1.15)
+            puffs.append((fx * w + rng.uniform(-1.5, 1.5), h - r * 0.85, r))
+
+        def inside(x, y):
+            if y >= h or x < 0 or x >= w:
+                return False
+            return any(math.hypot(x + 0.5 - cx, y + 0.5 - cy) < r for cx, cy, r in puffs) and y >= 0
+
+        tone = lambda day, rain, dark: _mix(_mix(day, rain, gloom), dark, night * 0.85)   # noqa: E731
+        fill = QColor(*tone((236, 241, 250), (128, 138, 160), (46, 56, 90)))
+        top = QColor(*tone((255, 255, 255), (162, 172, 192), (66, 78, 116)))
+        under = QColor(*tone((196, 206, 226), (98, 108, 130), (32, 40, 66)))
+        s = BODY_SCALE
+        img = QImage(w * s, h * s, QImage.Format_ARGB32_Premultiplied)
+        img.fill(Qt.transparent)
+        for y in range(h):
+            for x in range(w):
+                if not inside(x, y):
+                    continue
+                if not inside(x, y - 1):
+                    col = top
+                elif y >= h - 2 or not inside(x, y + 2):
+                    col = under
+                else:
+                    col = fill
+                for dy in range(s):
+                    for dx in range(s):
+                        img.setPixelColor(x * s + dx, y * s + dy, col)
+        pm = QPixmap.fromImage(img)
+        if len(self._cloud_cache) > 120:
+            self._cloud_cache.clear()
+        self._cloud_cache[key] = pm
+        return pm
+
+    def _clouds(self, p, w):
+        for i, (x, y, size, seed, _) in enumerate(w.clouds):
+            a = w.cloud_alpha(i)
+            if a <= 0.01:
+                continue
+            p.setOpacity(0.88 * a)
+            p.drawPixmap(int(x), int(y), self._cloud_pixmap(seed, size, w.gloom, w.night))
         p.setOpacity(1.0)
 
     def _glows(self, p, w):
