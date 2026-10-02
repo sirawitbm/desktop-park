@@ -19,7 +19,7 @@ from sprites import frame_image
 COLS = 5
 SLOT = 46
 ICON = QSize(18, 18)
-TIME_ICONS = {"clock": "clock", "day": "sun", "night": "moon"}
+TIME_ICONS = {"clock": "clock", "day": "day", "night": "moon"}
 TIME_TEXT = {"clock": "Clock", "day": "Day", "night": "Night"}
 
 # What the board says and shows in each look.

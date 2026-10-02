@@ -34,7 +34,7 @@ import weather_window as wwmod  # noqa: E402
 W, H = 1000, 340
 FPS = 14
 BG = "#1e2436"
-CLIPS = (("sun", "Sunny", 6, 2.6), ("rain", "Rain", 3, 2.6),
+CLIPS = (("sun", "Light rays", 6, 2.6), ("rain", "Rain", 3, 2.6),
          ("snow", "Snow", 140, 3.0), ("wind", "Windy", 6, 2.6))   # kind, label, warm-up s, length s
 
 SCENE = [("cherry", 30, 4), ("cottage", 120, 4), ("fence", 205, 3), ("lamp", 290, 3),
@@ -117,6 +117,7 @@ def main():
         w.particles, w.snow = [], [0.0] * len(w.snow)
         w.wind, w.sun = 0.0, 0.0
         w.set_kind(kind)
+        w.sky = ("sun", 0.3)                      # a morning sun, for the light rays
         for _ in range(int(warm / dt)):
             w.step(dt, rng)
         for i in range(int(length * FPS)):

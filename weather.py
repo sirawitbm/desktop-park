@@ -8,7 +8,7 @@ import math
 import random
 
 KINDS = ("clear", "sun", "rain", "snow", "wind")
-LABELS = {"clear": "Clear", "sun": "Sunny", "rain": "Rain", "snow": "Snow", "wind": "Windy"}
+LABELS = {"clear": "Clear", "sun": "Light rays", "rain": "Rain", "snow": "Snow", "wind": "Windy"}
 
 MAX_PARTICLES = 700
 FIREFLIES = 26           # at most this many on a 1920-pixel-wide screen

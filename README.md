@@ -30,19 +30,20 @@ a slim bar that fits inside your taskbar.
 
 ## Weather
 
-![The park cycling through sunny light rays, rain, snow piling up along the ground, and wind blowing leaves](docs/weather.gif)
+![The park cycling through light rays, rain, snow piling up along the ground, and wind blowing leaves](docs/weather.gif)
 
 Your desktop gets its own sky. Pick the weather on the board, or press
 **Auto** and let it change by itself every few minutes.
 
-- **Sunny** - warm light rays from the corner of the screen and drifting sparkles
+- **Light rays** - soft beams shining down from the sun with drifting sparkles;
+  at night they turn into silver moonbeams from the moon
 - **Rain** - pixel raindrops, slanted by the breeze, that splash when they land
 - **Snow** - flakes drift down and **pile up along the bottom of your screen**,
   then melt away when the snow stops
 - **Windy** - leaves and gusts blow across, and your flying and swimming pets
   get pushed around
 
-![Sunny, Rain, Snow and Windy side by side](docs/weather.png)
+![Light rays, Rain, Snow and Windy side by side](docs/weather.png)
 
 The weather never gets in your way: it lives in its own window that every
 click passes straight through
@@ -57,7 +58,8 @@ evening):
 - **The sun and moon move.** A pixel sun rises in the left corner of your
   screen in the morning, arcs across the top and sets in the right corner in
   the evening; then the moon does the same overnight, with a few twinkling
-  stars. On **Sunny** days the light rays shine from the sun.
+  stars. With **Light rays** on, the beams shine from the sun by day and the
+  moon by night.
 - **The park changes colour.** At sunset the pets and plants take on a warm
   glow, then cool moonlight. Things near a lamp or fire stay bright.
 - **Lights glow** - lamp posts, the campfire, the cottage window, crystals,
@@ -105,7 +107,7 @@ run it from source (below).
 - **Resize:** scroll the mouse wheel over a thing.
 - **Options:** right-click a thing to change how it moves, its size, turn it
   around, bring it to the front, copy, edit or remove it.
-- **Weather:** the buttons under WEATHER on the board: Off, Sunny, Rain,
+- **Weather:** the buttons under WEATHER on the board: Off, Light rays, Rain,
   Snow, Windy, and **Auto** to let it change by itself every few minutes.
   Also in the tray menu and on the folded bar. Weather never catches the mouse.
 - **Time of day:** **Clock** follows your computer's clock; **Day** and

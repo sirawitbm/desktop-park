@@ -24,8 +24,14 @@ SNOW = QColor(250, 252, 255, 235)
 SNOW_SHADE = QColor(190, 215, 240, 235)
 STREAK = QColor(255, 255, 255, 90)
 LEAVES = (QColor("#38b764"), QColor("#a7f070"), QColor("#ef7d3a"), QColor("#ffcd4f"))
-MOTE = QColor(255, 240, 170)
-RAY = (255, 208, 96)
+MOTE_DAY = (255, 240, 170)
+
+
+def _mix(a, b, t):
+    t = max(0.0, min(1.0, t))
+    return tuple(int(x + (y - x) * t) for x, y in zip(a, b))
+RAY = (255, 208, 96)              # sunbeams
+RAY_MOON = (196, 214, 255)        # moonbeams
 FIREFLY = QColor("#e4ff5c")
 MOON_LIGHT = QColor("#f4efcf")
 MOON_SHADE = QColor("#c9c09a")
@@ -178,7 +184,7 @@ class WeatherWindow(QWidget):
                 p.fillRect(int(x), int(y), PX, PX, QColor(255, 255, 220, int(200 * a)))  # bright middle
             elif kind == "mote":
                 a = max(0.0, min(1.0, q[5] / 1.0)) * (0.5 + 0.5 * math.sin(w.t * 4 + q[6] * 9))
-                c = QColor(MOTE)
+                c = QColor(*_mix(MOTE_DAY, RAY_MOON, w.night))
                 c.setAlphaF(0.85 * a * w.sun)
                 p.fillRect(int(x), int(y), PX, PX, c)
         self._snow_pile(p, w)
@@ -289,21 +295,24 @@ class WeatherWindow(QWidget):
             p.fillRect(x, y + u, u, u * 2, c)
 
     def _rays(self, p, w):
-        """A few soft beams fanning out from the sun (or from beyond the
-        top-left corner when the sun is hidden)."""
+        """Light rays: warm sunbeams by day, silver moonbeams by night, fanning
+        out from wherever the sun or moon is (or from beyond the top-left
+        corner when the sky is hidden)."""
         width, height = self.width(), self.height()
-        if w.sky and w.sky[0] == "sun":
+        if w.sky:
             ox, oy = self.body_pos(w)
         else:
             ox, oy = -width * 0.08, -height * 0.25
+        colour = _mix(RAY, RAY_MOON, w.night)
+        strength = 0.11 - 0.025 * w.night
         reach = math.hypot(width, height) * 1.2
         base = math.atan2(height * 0.9 - oy, width / 2 - ox)     # aim at the park
         for i, (angle, spread) in enumerate(((-0.34, 0.05), (-0.17, 0.035), (0.0, 0.06),
                                              (0.17, 0.03), (0.34, 0.045))):
             angle += base
             pulse = 0.65 + 0.35 * math.sin(w.t * 0.4 + i * 1.7)
-            c = QColor(*RAY)
-            c.setAlphaF(0.11 * pulse * w.sun)
+            c = QColor(*colour)
+            c.setAlphaF(strength * pulse * w.sun)
             a1, a2 = angle - spread, angle + spread
             poly = QPolygonF([QPointF(ox, oy),
                               QPointF(ox + math.cos(a1) * reach, oy + math.sin(a1) * reach),
