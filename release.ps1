@@ -24,6 +24,10 @@ $zipPath = Join-Path $releaseDir "$artifactName.zip"
 $zipChecksumPath = "$zipPath.sha256"
 $installerPath = Join-Path $releaseDir "DesktopPark-v$Version-Setup.exe"
 $installerChecksumPath = "$installerPath.sha256"
+# The optional Theme Pack: a .parkpack file (portable users import it) and
+# its own small installer (for the installed app). Not part of the app itself.
+$packPath = Join-Path $releaseDir "DesktopPark-ThemePack-v$Version.parkpack"
+$packInstallerPath = Join-Path $releaseDir "DesktopPark-ThemePack-v$Version-Setup.exe"
 $stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("DesktopPark-release-" + [guid]::NewGuid())
 $stageApp = Join-Path $stageRoot $artifactName
 
@@ -73,6 +77,14 @@ try {
     $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
     Set-Content $zipChecksumPath "$hash  $([System.IO.Path]::GetFileName($zipPath))" -Encoding ascii
 
+    Remove-Item $packPath, "$packPath.sha256" -Force -ErrorAction SilentlyContinue
+    python (Join-Path $PSScriptRoot "tools\build_pack.py") $packPath
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $packPath)) {
+        throw "Theme Pack build failed with exit code $LASTEXITCODE."
+    }
+    $hash = (Get-FileHash $packPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    Set-Content "$packPath.sha256" "$hash  $([System.IO.Path]::GetFileName($packPath))" -Encoding ascii
+
     if (-not $SkipInstaller) {
         $isccCandidates = @(
             (Get-Command ISCC.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source),
@@ -93,6 +105,16 @@ try {
         $hash = (Get-FileHash $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
         Set-Content $installerChecksumPath `
             "$hash  $([System.IO.Path]::GetFileName($installerPath))" -Encoding ascii
+
+        Remove-Item $packInstallerPath, "$packInstallerPath.sha256" -Force -ErrorAction SilentlyContinue
+        & $iscc "/DMyAppVersion=$Version" "/DMyAppPublisher=$ProjectPublisher" `
+            "/DMyAppURL=$ProjectUrl" (Join-Path $PSScriptRoot "pack-installer.iss")
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $packInstallerPath)) {
+            throw "Theme Pack installer build failed with exit code $LASTEXITCODE."
+        }
+        $hash = (Get-FileHash $packInstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        Set-Content "$packInstallerPath.sha256" `
+            "$hash  $([System.IO.Path]::GetFileName($packInstallerPath))" -Encoding ascii
     }
 }
 finally {
@@ -101,7 +123,9 @@ finally {
 
 Write-Host "Portable: $zipPath"
 Write-Host "SHA-256: $zipChecksumPath"
+Write-Host "Theme Pack: $packPath"
 if (-not $SkipInstaller) {
     Write-Host "Installer: $installerPath"
     Write-Host "SHA-256: $installerChecksumPath"
+    Write-Host "Theme Pack installer: $packInstallerPath"
 }

@@ -27,7 +27,7 @@ from weather import KINDS as WEATHER_KINDS, LABELS as WEATHER_LABELS
 from weather_window import WeatherWindow
 from sprites import Library, app_icon
 
-__version__ = "0.6.2"
+__version__ = "0.7.0"
 
 UPDATE_FIRST_MS = 5000                 # first look for a new version
 UPDATE_EVERY_MS = 6 * 3600 * 1000      # then every 6 hours
@@ -52,6 +52,7 @@ class App:
         qapp.setQuitOnLastWindowClosed(False)   # closing the editor must not quit
         self.quitting = False
         self.data = store.load()
+        pack_news = self._take_in_packs()          # new park packs (e.g. the Theme Pack)
         ui_style.install(qapp, self.data["theme"])   # Modern or Pixel look
         self.library = Library(self.data["custom_art"])
         self.editor = None
@@ -122,6 +123,9 @@ class App:
         self.board.set_show_sky(self.data["show_sky"])
         self.set_hidden(self.data["hidden"])
         self.board.show()
+        if pack_news:
+            self.save()
+            self.tray.showMessage("Desktop Park", pack_news, QSystemTrayIcon.Information, 10000)
         screen.availableGeometryChanged.connect(self._screen_resized)
         self.board.set_screen_menu(self._screen_menu(), len(qapp.screens()) > 1)
         qapp.screenAdded.connect(self._screens_changed)
@@ -389,13 +393,45 @@ class App:
         self.update = None
         self._show_update()
 
+    # -- park packs ------------------------------------------------------------
+    def _take_in_packs(self):
+        """Add drawings and parks from pack files that are new to this park.
+        Runs before the windows are made, so they simply start with them.
+        Returns what to tell the user, or ''."""
+        lines = []
+        for pack in store.new_packs(self.data):
+            lines.append(_pack_news(pack, *store.merge_pack(self.data, pack)))
+        return "\n".join(lines)
+
+    def import_pack(self, path):
+        try:
+            pack = store.read_pack(path)
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            self._warn("Could not import the park pack.\n" + str(error))
+            return False
+        self.data["custom_art"] = self.library.custom_list()
+        news = _pack_news(pack, *store.merge_pack(self.data, pack))
+        for picture in pack["drawings"]:
+            self.library.set_custom(picture)
+            self.park.refresh_art(picture["id"])
+        self.board.rebuild()
+        self.board.set_presets(self.data["presets"])
+        self.save()                              # a failure shows the board's Retry bar
+        box = QMessageBox(QMessageBox.Information, "Desktop Park", news, parent=self.board)
+        box.setTextFormat(Qt.PlainText)          # names come from the file
+        box.exec()
+        return True
+
     # -- drawings --------------------------------------------------------------
     def import_art(self, path=None):
         if path is None:
-            path, _ = QFileDialog.getOpenFileName(self.board, "Import drawing", "",
-                                                 "Park drawings (*.parkart);;JSON (*.json)")
+            path, _ = QFileDialog.getOpenFileName(self.board, "Import drawing or park pack", "",
+                                                 "Drawings and park packs (*.parkart *.parkpack);;"
+                                                 "JSON (*.json)")
         if not path:
             return False
+        if path.lower().endswith(".parkpack"):
+            return self.import_pack(path)
         try:
             picture = store.import_drawing(path)
         except (OSError, ValueError, TypeError) as error:
@@ -528,7 +564,7 @@ class App:
                                              QMessageBox.Yes | QMessageBox.No,
                                              QMessageBox.No) != QMessageBox.Yes:
             return False
-        if existing is None and len(self.data["presets"]) >= 32:
+        if existing is None and len(self.data["presets"]) >= store.MAX_PRESETS:
             QMessageBox.information(self.board, "Desktop Park", "Remove a saved park before adding another.")
             return False
         preset = {"name": name, "width": self.park.world.width, "height": self.park.world.height,
@@ -583,7 +619,7 @@ class App:
         undo_action.setEnabled(False)
         self.park.undo_changed.connect(undo_action.setEnabled)
         menu.addMenu(self.board.presets_btn.menu())
-        menu.addAction("Import drawing...", lambda: self.import_art())
+        menu.addAction("Import drawing or pack...", lambda: self.import_art())
         self.power_action = menu.addAction("Low power")
         self.power_action.setCheckable(True)
         self.power_action.triggered.connect(self.set_low_power)
@@ -759,6 +795,18 @@ class App:
         box.setTextFormat(Qt.PlainText)
         box.exec()
 
+
+
+def _pack_news(pack, added, skipped):
+    """One line about what a park pack brought."""
+    if added:
+        text = "%s added %d park%s. Open Parks on the board to switch." % (
+            pack["name"], len(added), "" if len(added) == 1 else "s")
+    else:
+        text = "%s is up to date: its drawings are on the board." % pack["name"]
+    if skipped:
+        text += " %d didn't fit - remove a saved park and import it again." % len(skipped)
+    return text
 
 
 def _export_suggestion(picture):

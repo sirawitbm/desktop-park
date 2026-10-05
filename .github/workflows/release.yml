@@ -49,6 +49,7 @@ jobs:
           path: |
             dist/release/*.zip
             dist/release/*-Setup.exe
+            dist/release/*.parkpack
             dist/release/*.sha256
           if-no-files-found: error
 
@@ -59,5 +60,6 @@ jobs:
           files: |
             dist/release/*.zip
             dist/release/*-Setup.exe
+            dist/release/*.parkpack
             dist/release/*.sha256
           generate_release_notes: true

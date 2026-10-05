@@ -297,7 +297,7 @@ class Board(QWidget):
         self.set_presets([])
         self.import_btn = QToolButton()
         self.import_btn.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
-        self.import_btn.setToolTip("Import a drawing")
+        self.import_btn.setToolTip("Import a drawing or park pack")
         self.import_btn.setFixedSize(30, 30)
         self.import_btn.clicked.connect(self.import_art.emit)
         self.power_btn = QToolButton()

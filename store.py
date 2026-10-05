@@ -3,17 +3,26 @@
 - Running from source: the git-ignored `local/` folder next to the code.
 - Portable exe (a `portable.flag` file beside it): `data/` beside the exe.
 - Installed exe: %LOCALAPPDATA%\\DesktopPark.
+
+Park packs (*.parkpack files, like the optional Theme Pack) are picked up
+from a `packs` folder inside that folder (and beside the exe); their drawings
+and parks are added once - see merge_pack().
 """
 
 import json
 import math
 import os
+import re
 import sys
 
 from art import BEHAVIORS, PIXEL_CHARS
 from weather import KINDS as WEATHER_KINDS
 
 APP_DIR = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
+
+MAX_PRESETS = 32
+PACK_FORMAT = "desktop-park-pack"
+PACK_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
 
 def data_dir():
@@ -36,7 +45,8 @@ def empty():
     return {"version": 1, "custom_art": [], "objects": [], "presets": [], "board": {},
             "locked": False, "hidden": False, "seeded": False,
             "weather": "clear", "weather_auto": False, "skip_update": "", "screen": "", "theme": "modern",
-            "time_mode": "clock", "show_sky": True, "low_power": False}
+            "time_mode": "clock", "show_sky": True, "low_power": False,
+            "packs": {}}          # park packs already taken in: pack id -> pack version
 
 
 def load(path=None):
@@ -153,11 +163,15 @@ def clean(raw):
     data["show_sky"] = raw.get("show_sky") is not False          # on unless turned off
     presets = raw.get("presets")
     names = set()
-    for preset in presets[:32] if isinstance(presets, list) else []:
+    for preset in presets[:MAX_PRESETS] if isinstance(presets, list) else []:
         preset = clean_preset(preset)
         if preset and preset["name"].casefold() not in names:
             names.add(preset["name"].casefold())
             data["presets"].append(preset)
+    packs = raw.get("packs")
+    if isinstance(packs, dict):
+        data["packs"] = {k: v[:20] for k, v in list(packs.items())[:50]
+                         if isinstance(k, str) and PACK_ID.match(k) and isinstance(v, str)}
     return data
 
 
@@ -197,3 +211,100 @@ def import_drawing(path):
     if picture is None:
         raise ValueError("This file contains no valid drawing.")
     return picture
+
+
+# -- park packs ------------------------------------------------------------------
+# A pack is a JSON file: {"format": "desktop-park-pack", "version": 1, "id": "theme-pack",
+# "name": "Theme Pack", "pack_version": "1.0.0", "drawings": [...], "parks": [...]}.
+# Drawings look like custom_art entries, parks like saved parks (presets).
+
+def pack_dirs():
+    """Where pack files are picked up: `packs` in the save folder, and beside the exe."""
+    dirs = [os.path.join(data_dir(), "packs")]
+    if getattr(sys, "frozen", False):
+        dirs.append(os.path.join(APP_DIR, "packs"))
+    return dirs
+
+
+def read_pack(path):
+    """A pack file, checked like everything else from disk. Raises ValueError."""
+    if os.path.getsize(path) > 4 * 1024 * 1024:
+        raise ValueError("Park packs must be smaller than 4 MB.")
+    try:
+        with open(path, encoding="utf-8") as source:
+            raw = json.load(source)
+    except RecursionError:
+        raise ValueError("This park pack is damaged.") from None
+    if not isinstance(raw, dict) or raw.get("format") != PACK_FORMAT or raw.get("version") != 1:
+        raise ValueError("This is not a supported Desktop Park pack.")
+    pack_id = raw.get("id")
+    if not isinstance(pack_id, str) or not PACK_ID.match(pack_id):
+        raise ValueError("This park pack has no valid id.")
+    builtin = set(a["id"] for a in _builtin_art())
+    drawings = []
+    for picture in raw.get("drawings") if isinstance(raw.get("drawings"), list) else []:
+        picture = clean_art(picture)
+        # a pack may not replace the built-in art or your own drawings ("my-...")
+        if picture and picture["id"] not in builtin and not picture["id"].startswith("my-"):
+            drawings.append(picture)
+    parks, names = [], set()
+    for park in raw.get("parks") if isinstance(raw.get("parks"), list) else []:
+        park = clean_preset(park)
+        if park and park["name"].casefold() not in names:
+            names.add(park["name"].casefold())
+            parks.append(park)
+    if not drawings and not parks:
+        raise ValueError("This park pack is empty.")
+    return {"id": pack_id, "name": str(raw.get("name") or pack_id)[:40],
+            "pack_version": str(raw.get("pack_version") or "1")[:20],
+            "drawings": drawings[:500], "parks": parks[:MAX_PRESETS]}
+
+
+def _builtin_art():
+    from art import BUILTIN
+    return BUILTIN
+
+
+def merge_pack(data, pack):
+    """Add a pack's drawings and parks to the park data.
+
+    Drawings with the same id are replaced (the pack owns its ids). Parks are
+    only added under names that are free, so a park you changed or renamed to
+    the same name is never overwritten. Returns (added park names, park names
+    that did not fit under the saved-park limit)."""
+    ids = {picture["id"] for picture in pack["drawings"]}
+    data["custom_art"] = [a for a in data["custom_art"] if a["id"] not in ids] + list(pack["drawings"])
+    names = {park["name"].casefold() for park in data["presets"]}
+    added, skipped = [], []
+    for park in pack["parks"]:
+        if park["name"].casefold() in names:
+            continue
+        if len(data["presets"]) >= MAX_PRESETS:
+            skipped.append(park["name"])
+            continue
+        data["presets"].append(park)
+        names.add(park["name"].casefold())
+        added.append(park["name"])
+    data["packs"][pack["id"]] = pack["pack_version"]
+    return added, skipped
+
+
+def new_packs(data):
+    """Pack files in the pack folders that this park hasn't taken in yet
+    (new, or a newer version). Damaged files are skipped quietly."""
+    found = {}
+    for folder in pack_dirs():
+        try:
+            names = sorted(os.listdir(folder))
+        except OSError:
+            continue
+        for name in names:
+            if not name.lower().endswith(".parkpack"):
+                continue
+            try:
+                pack = read_pack(os.path.join(folder, name))
+            except (OSError, ValueError, TypeError, AttributeError):
+                continue
+            if data["packs"].get(pack["id"]) != pack["pack_version"]:
+                found.setdefault(pack["id"], pack)
+    return list(found.values())

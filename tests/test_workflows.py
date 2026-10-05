@@ -255,6 +255,48 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(owner.park.world.things), 2)
         self.assertNotIn("cat", owner.library.custom)
 
+    def _theme_pack_file(self, directory):
+        import json
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "packs"))
+        import theme_pack
+        path = os.path.join(directory, "theme-pack.parkpack")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(theme_pack.build(), f)
+        return path
+
+    def test_importing_a_park_pack_adds_its_parks_and_pictures(self):
+        owner = self.owner()
+        owner.park.add_art("cat")
+        before = owner.park.snapshot()
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._theme_pack_file(directory)
+            with patch("desktop_park.store.save") as save, \
+                    patch("desktop_park.QMessageBox.exec") as told:
+                self.assertTrue(owner.import_art(path))
+        save.assert_called_once()
+        told.assert_called_once()
+        self.assertEqual(len(owner.data["presets"]), 7)
+        self.assertIn("scene-torii", owner.library.custom)
+        self.assertEqual(owner.data["packs"], {"theme-pack": "1.0.0"})
+        self.assertEqual(owner.park.snapshot(), before)          # your park stays as it is
+        owner.park.clear()
+        self.assertTrue(owner.load_preset("Snowy Village"))
+        self.assertEqual(owner.data["weather"], "snow")
+        self.assertIn("scene-snowman", {t.art_id for t in owner.park.world.things})
+
+    def test_new_packs_are_taken_in_at_start_once(self):
+        import store
+        from desktop_park import App
+        owner = App.__new__(App)
+        owner.data = store.empty()
+        with tempfile.TemporaryDirectory() as directory:
+            self._theme_pack_file(directory)
+            with patch("desktop_park.store.pack_dirs", return_value=[directory]):
+                news = owner._take_in_packs()
+                self.assertIn("Theme Pack added 7 parks", news)
+                self.assertEqual(owner._take_in_packs(), "")      # already taken in
+        self.assertEqual(len(owner.data["custom_art"]), 24)
+
     def test_low_power_changes_update_rates_not_simulation_time(self):
         owner = self.owner()
         owner.set_low_power(True)

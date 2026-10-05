@@ -17,6 +17,9 @@ a slim bar that fits inside your taskbar.
   and for Halloween a jack-o'-lantern, a spooky tree, a gravestone and a cauldron
 - **Draw your own** pets and decorations, with animation frames
 - **Saved parks:** keep named arrangements and switch between them
+- **Theme Pack** (optional extra download): 7 ready-made parks - Sakura
+  Garden, Forest Camp, Tropical Beach, Snowy Village, Countryside Farm,
+  Under the Sea and Halloween Night - with 24 new pictures
 - **Undo** park edits, and import or export drawings to share them
 - **Low power:** fewer movement and weather updates, without slowing time
 - **Any picture can walk, hop, swim, fly or stay still** - your choice
@@ -96,11 +99,57 @@ they move to the top.
   the Start menu, no administrator access needed.
 - `DesktopPark-vX.Y.Z-windows-x64.zip` - portable. Extract the whole folder,
   then run `DesktopPark.exe`; it keeps your park inside that folder.
+- Optional, see [Theme Pack](#theme-pack-optional):
+  `DesktopPark-ThemePack-vX.Y.Z-Setup.exe` for the installed app, or
+  `DesktopPark-ThemePack-vX.Y.Z.parkpack` for the portable one.
 
 Windows SmartScreen may warn about the app because releases are not digitally
 signed. Download only from this repository, check the SHA-256 file next to
 each download, and scan it with Microsoft Defender if you like. You can also
 run it from source (below).
+
+## Theme Pack (optional)
+
+![Seven ready-made parks: Sakura Garden, Forest Camp at night, Tropical Beach, Snowy Village, Countryside Farm with a windmill, Under the Sea and Halloween Night](docs/theme-pack.png)
+
+Seven ready-made parks to switch between, as a separate download - Desktop
+Park works the same without it:
+
+| Park | What's in it |
+|---|---|
+| **Sakura Garden** | Cherry trees, a torii gate, stone lanterns, a bridge over a stream |
+| **Forest Camp** | Always night: a tent by the campfire, pines, a fox and owls, fireflies |
+| **Tropical Beach** | Palms, beach umbrellas, a sandcastle, crabs and seagulls, light rays |
+| **Snowy Village** | Falling snow, snowy pines, cottages, snowmen and penguins |
+| **Countryside Farm** | A windmill with turning sails, haystacks, sunflowers and sheep |
+| **Under the Sea** | Kelp, coral, a castle and treasure, koi, jellyfish and a pufferfish |
+| **Halloween Night** | Spooky trees, gravestones, glowing jack-o'-lanterns, bats and ghosts |
+
+It also brings 24 new pictures (torii, lantern, tent, fox, owl, seagull,
+snowman, windmill, sheep, kelp, ground strips and more). They appear under
+**My drawings** on the board, so you can use and edit them in any park.
+
+**Install it** (needs Desktop Park 0.7.0 or newer):
+
+- **Installed app:** download `DesktopPark-ThemePack-vX.Y.Z-Setup.exe` from
+  the [releases page](https://github.com/sirawitbm/desktop-park/releases/latest)
+  and run it. It asks you to close Desktop Park if it is open, then offers to
+  open it again. A message by the clock says the parks were added.
+- **Portable zip:** download `DesktopPark-ThemePack-vX.Y.Z.parkpack`, press
+  the folder button beside **Parks** on the board (or **Import drawing or
+  pack...** in the tray menu) and pick the file.
+
+**Use it:** press **Parks** on the board and pick a park, then **Load**. Each
+park brings its own weather and time of day (Snowy Village snows, Forest Camp
+and Halloween Night stay at night); change them on the board as usual.
+Your own park is not touched - save it first with **Parks > Save current
+park...** if you want to come back to it.
+
+The pack only adds parks whose names are free, so it never overwrites a park
+you saved, and a park you delete stays deleted. **Removing it:** uninstall
+"Desktop Park Theme Pack" from Windows Settings > Apps. The parks and
+pictures it already added stay until you delete them from **Parks** and
+**My drawings**.
 
 ## How to use it
 
@@ -186,7 +235,7 @@ Your drawings show up under **My drawings** on the board.
 
 **Share drawings:** right-click a picture on the board and choose **Export
 drawing** to write a `.parkart` file. The folder button beside Parks imports
-one. Imported drawings receive a new ID, so importing the same file twice
+one (or a `.parkpack` park pack, like the [Theme Pack](#theme-pack-optional)). Imported drawings receive a new ID, so importing the same file twice
 creates independent copies. Drawing files contain the palette, animation
 frames and movement choice, not your whole park or personal settings.
 Built-in blink/sleep poses are not part of editable drawing files.
@@ -216,8 +265,18 @@ draws every sprite, icon and cloud for design reviews, and
 `python tools/profile_weather.py` times off-screen 1080p/4K weather rendering
 (it does not measure native Windows GPU/compositor costs).
 
+The Theme Pack lives in `packs/theme_pack.py` (its pictures as rows of
+letters, and the park layouts). `python tools/build_pack.py` writes the
+`.parkpack` file to `dist/release` and checks it loads; `python
+tools/pack_preview.py` draws `docs/theme-pack.png`. To try a pack from
+source, put the `.parkpack` file in `local/packs/` and start the app, or
+import it from the board. `release.ps1` builds the pack and its installer
+(`pack-installer.iss`) next to the app's own downloads.
+
 Where your park is saved: `local/park.json` from source, `data/` next to the
 exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
+Park packs are picked up from a `packs` folder inside that save folder (the
+Theme Pack installer puts its file there) and from `packs` beside the exe.
 
 ## How it works
 
@@ -235,7 +294,9 @@ exe for the portable zip, `%LOCALAPPDATA%\DesktopPark` for the installed app.
 | `editor.py` | The pixel editor |
 | `art.py`, `art_pack.py` | The built-in pixel art, written as rows of letters |
 | `sprites.py` | Turns the art into images |
-| `store.py` | Saves and loads the park safely (with a backup copy) |
+| `store.py` | Saves and loads the park safely (with a backup copy), reads park packs |
+| `packs/theme_pack.py` | The optional Theme Pack: its pictures and seven park layouts |
+| `tools/build_pack.py`, `pack-installer.iss` | Build the Theme Pack file and its installer |
 | `ui_style.py` | The two looks (Modern and Pixel): colours, fonts, pixel frames |
 | `assets/fonts/` | The pixel font and its license |
 
